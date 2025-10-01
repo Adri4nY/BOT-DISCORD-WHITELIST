@@ -1,0 +1,109 @@
+[
+  {
+    "pregunta": "Selecciona una situación donde se genere Metagaming",
+    "opciones": [
+      "Me doy cuenta de qué me van a hacer CK y evito entrar al servidor",
+      "Escucho las indicaciones de mis amigos por llamada en discord",
+      "Llamar a un jugador por su nombre mientras este tiene máscara",
+      "Todas las situaciones tienen Metagaming"
+    ],
+    "respuesta": "d"
+  },
+  {
+    "pregunta": "¿Qué es Powergaming?",
+    "opciones": [
+      "Subir a un amigo a mi espalda",
+      "No interpretar correctamente mi personaje",
+      "Son acciones que en la vida real no podrías realizar y dañan la experiencia del roleplay",
+      "Es usar hacks para mi beneficio"
+    ],
+    "respuesta": "c"
+  },
+  {
+    "pregunta": "Valorar tu vida es la norma más importante del roleplay ¿Por qué?",
+    "opciones": [
+      "Sin ella la interpretación del roleplay no tendria sentido",
+      "Si la norma no se respeta, el rol no será serio",
+      "Porque si no valoro mi vida arruino mi experiencia y la de los demás",
+      "Todas las opciones son válidas"
+    ],
+    "respuesta": "d"
+  },
+  {
+    "pregunta": "Si me apuntan con un arma que debo hacer?",
+    "opciones": [
+      "Valorar mi vida y cooperar en todo momento",
+      "Correr si tengo la oportunidad",
+      "Porque si no valoro mi vida arruino mi experiencia y la de los demás",
+      "Tengo un arma y también le apunto"
+    ],
+    "respuesta": "a"
+  },
+  {
+    "pregunta": "¿Puedo usar la expresión ''musculo'' para referirme a teclas? ¿Cómo le dirías a un jugador que tecla usar?",
+    "opciones": [
+      "Si puedo usar esta expresión. Le diría a un jugador; Usa músculo F para subirte",
+      "No puedo usar esta expresión porque es considerada anti-rol (Es una expresión OOC)"
+    ],
+    "respuesta": "c"
+  },
+  {
+    "pregunta": "¿Qué es Fair-play?",
+    "opciones": [
+      "Respetar la normativa y no usar vacios para mi beneficio",
+      "Es considerado el juego justo entre jugadores",
+      "Respetar a mi rival y entender que el rol tiene que ser divertido para los dos",
+      "Todas las opciones son válidas"
+    ],
+    "respuesta": "d"
+  },
+  {
+    "pregunta": "Player Kill (PK) significa entrar en estado de inconsciencia. ¿Puedo recordar quien me dejó en este estado?",
+    "opciones": [
+      "Si puedo recordar quien me hizo PK, ya que es parte del roleplay.",
+      "No puedo recordar quien me hizo un PK, ni como, ni donde",
+      "Depende",
+      "No puedo recordar  desde cuando estas inconsciente(Muerto) hasta que te reaniman (ese trayecto)"
+    ],
+    "respuesta": "c"
+  },
+  {
+    "pregunta": "Si un policía te detiene en rol, ¿qué debes hacer?",
+    "opciones": [
+      "Desconectarte para no ser arrestado",
+      "Ignorarlo y seguir",
+      "Seguir el rol y acatar las órdenes",
+      "Insultarlo por OOC"
+    ],
+    "respuesta": "d"
+  },
+  {
+    "pregunta": "¿Cuál de los siguientes ejemplos respeta la normativa sobre el rol de heridas?",
+    "opciones": [
+      "Me voy corriendo con varias heridas de bala y continuo mi día como si no hubiese pasado nada.",
+      "Finaliza el enfrentamiento y procedo a rolear las heridas que me produjeron durante el enfrentamiento",
+      "Desconecto en medio del enfrentamiento para evitar caer muerto.",
+      "Salir roleando del hospital como si no me hubiera pasado nada."
+    ],
+    "respuesta": "b"
+  },
+  {
+    "pregunta": "Estas en un menú de interacción con tu personaje, en la tienda de ropa, cambiándote de ropa. ¿Te pueden robar?",
+    "opciones": [
+      "Si, todo es posible",
+      "No, está prohibido",
+      "Si tiras un entorno detallado, puedes robarle sin problema"
+    ],
+    "respuesta": "b"
+  },
+  {
+    "pregunta": "¿Cuánto tiempo tengo que esperar entre robo y robo?",
+    "opciones": [
+      "10 minutos",
+      "No tengo que esperar",
+      "30 minutos",
+      "5 minutos"
+    ],
+    "respuesta": "c"
+  }
+]
