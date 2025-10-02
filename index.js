@@ -42,6 +42,9 @@ const LOG_CHANNEL_ID = "1422893357042110546";
 const WHITELIST_CATEGORY_ID = "1422897937427464203";
 const SOPORTE_CATEGORY_ID = "1422898157829881926";
 
+// Cooldowns
+const cooldowns = {}; // { userId: timestamp }
+
 client.once("ready", () => {
   console.log(`✅ Bot iniciado como: ${client.user.tag}`);
 });
@@ -54,7 +57,7 @@ client.on("messageCreate", async (message) => {
   const embed = new EmbedBuilder()
     .setTitle("📋 Sistema de Whitelist")
     .setDescription(
-      "Pulsa el botón para iniciar tu whitelist. Tendra 1 minuto para responder cada pregunta.",
+      "Pulsa el botón para iniciar tu whitelist. Tendrás 1 minuto para responder cada pregunta.",
     )
     .setColor("Purple");
 
@@ -97,30 +100,14 @@ async function hacerPregunta(
   totalPreguntas,
 ) {
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("a")
-      .setLabel("a")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("b")
-      .setLabel("b")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("c")
-      .setLabel("c")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("d")
-      .setLabel("d")
-      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("a").setLabel("a").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("b").setLabel("b").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("c").setLabel("c").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("d").setLabel("d").setStyle(ButtonStyle.Secondary),
   );
 
-  // Construimos la descripción de las opciones correctamente
-  const opciones = pregunta.opciones
-    .map((opcion, index) => {
-      const letra = String.fromCharCode(97 + index); // 'a' = 97, 'b' = 98, etc.
-      return `${letra}) ${opcion}`;
-    })
+  const opciones = Object.entries(pregunta.opciones)
+    .map(([letra, texto]) => `${letra}) ${texto}`)
     .join("\n");
 
   const embed = new EmbedBuilder()
@@ -128,10 +115,7 @@ async function hacerPregunta(
     .setDescription(`**${pregunta.pregunta}**\n\n${opciones}`)
     .setColor("Purple");
 
-  const msg = await channel.send({
-    embeds: [embed],
-    components: [row],
-  });
+  const msg = await channel.send({ embeds: [embed], components: [row] });
 
   return new Promise((resolve) => {
     const filter = (i) => i.user.id === usuario.id;
@@ -139,7 +123,7 @@ async function hacerPregunta(
       .awaitMessageComponent({ filter, time: 60000 })
       .then(async (interaction) => {
         interaction.deferUpdate().catch(() => {});
-        await msg.delete().catch(() => {}); // Eliminar la pregunta después de la respuesta
+        await msg.delete().catch(() => {});
         resolve(interaction.customId);
       })
       .catch(() => {
@@ -156,52 +140,51 @@ client.on("interactionCreate", async (interaction) => {
 
   // --- BOTÓN WHITELIST ---
   if (interaction.customId === "whitelist") {
+    const userId = interaction.user.id;
+    const now = Date.now();
+
+    // Verificar cooldown de 6 horas
+    if (cooldowns[userId] && now - cooldowns[userId] < 6 * 60 * 60 * 1000) {
+      const remaining = 6 * 60 * 60 * 1000 - (now - cooldowns[userId]);
+      const hours = Math.floor(remaining / (1000 * 60 * 60));
+      const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+      return interaction.reply({
+        content: `⚠️ Ya hiciste un intento de whitelist. Debes esperar ${hours}h ${minutes}m antes de intentarlo de nuevo.`,
+        ephemeral: true,
+      });
+    }
+
+    // Guardar intento
+    cooldowns[userId] = now;
+
     const guild = interaction.guild;
 
     const channel = await guild.channels.create({
       name: `whitelist-${interaction.user.username}`,
-      type: 0, // texto
-      parent: WHITELIST_CATEGORY_ID, // 👉 lo manda a la categoría de whitelist
+      type: 0,
+      parent: WHITELIST_CATEGORY_ID,
       permissionOverwrites: [
-        {
-          id: guild.id,
-          deny: [PermissionsBitField.Flags.ViewChannel],
-        },
-        {
-          id: interaction.user.id,
-          allow: [
-            PermissionsBitField.Flags.ViewChannel,
-            PermissionsBitField.Flags.SendMessages,
-          ],
-        },
+        { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
       ],
     });
 
     await interaction.reply({
       content: `✅ Ticket de whitelist creado: ${channel}`,
-      flags: 64,
+      ephemeral: true,
     });
 
     let puntaje = 0;
 
     // Hacer las preguntas
     for (let i = 0; i < preguntas.length; i++) {
-      const respuesta = await hacerPregunta(
-        channel,
-        interaction.user,
-        preguntas[i],
-        i,
-        preguntas.length,
-      );
+      const respuesta = await hacerPregunta(channel, interaction.user, preguntas[i], i, preguntas.length);
 
-      // Comprobar si la respuesta es correcta
-      if (respuesta && respuesta === preguntas[i].respuesta) {
-        puntaje++;
-      }
+      if (respuesta && respuesta === preguntas[i].respuesta) puntaje++;
     }
 
-    // Resultado final en un embed
-    const aprobado = puntaje >= 9; // Cambiado a 9 respuestas correctas
+    // Resultado final
+    const aprobado = puntaje >= 9;
 
     const resultadoEmbed = new EmbedBuilder()
       .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
@@ -214,36 +197,25 @@ client.on("interactionCreate", async (interaction) => {
 
     await channel.send({ embeds: [resultadoEmbed] });
 
-    // Si aprueba, asignar rol de whitelist y eliminar el rol de sin whitelist
     if (aprobado) {
       try {
-        const member = await guild.members.fetch(interaction.user.id); // Obtener al usuario
-
-        // Asignar el rol de whitelist
-        await member.roles.add("822529294365360139"); // Reemplaza con la ID de tu rol de whitelist
-
-        // Eliminar el rol de sin whitelist si lo tiene
-        await member.roles.remove("1320037024358600734"); // Reemplaza con la ID de tu rol de sin whitelist
-
-        await channel.send(
-          "🎉 ¡Felicidades! Has recibido el rol de **Whitelist**.",
-        );
+        const member = await guild.members.fetch(interaction.user.id);
+        await member.roles.add("822529294365360139"); // ID rol whitelist
+        await member.roles.remove("1320037024358600734"); // ID rol sin whitelist
+        await channel.send("🎉 ¡Felicidades! Has recibido el rol de **Whitelist**.");
       } catch (err) {
         console.error("❌ Error al asignar o quitar el rol:", err);
-        await channel.send(
-          "⚠️ Ocurrió un error al asignarte o quitarte el rol, avisa a un staff.",
-        );
+        await channel.send("⚠️ Ocurrió un error al asignarte o quitarte el rol, avisa a un staff.");
       }
     }
-    // Enviar al canal de logs con mención al usuario
+
+    // Log
     const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
     if (logChannel) {
-      logChannel.send({
-        content: `${interaction.user}`,
-        embeds: [resultadoEmbed],
-      });
+      logChannel.send({ content: `${interaction.user}`, embeds: [resultadoEmbed] });
     }
 
+    // Cerrar ticket después de 30 segundos
     setTimeout(() => channel.delete().catch(() => {}), 30000);
   }
 
@@ -254,59 +226,18 @@ client.on("interactionCreate", async (interaction) => {
     const channel = await guild.channels.create({
       name: `soporte-${interaction.user.username}`,
       type: 0,
-      parent: SOPORTE_CATEGORY_ID, // 👉 lo manda a la categoría de soporte
+      parent: SOPORTE_CATEGORY_ID,
       permissionOverwrites: [
-        {
-          id: guild.id,
-          deny: [PermissionsBitField.Flags.ViewChannel],
-        },
-        {
-          id: interaction.user.id,
-          allow: [
-            PermissionsBitField.Flags.ViewChannel,
-            PermissionsBitField.Flags.SendMessages,
-          ],
-        },
+        { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
       ],
     });
 
-    await interaction.reply({
-      content: `✅ Ticket de soporte creado: ${channel}`,
-      flags: 64,
-    });
-    await channel.send(
-      `👋 Hola ${interaction.user}, explica tu problema y un miembro del staff te atenderá.`,
-    );
-  }
-});
-
-
-const cooldowns = {}; // { userId: timestamp }
-
-client.on("messageCreate", async (message) => {
-  if (message.author.bot) return;
-
-  if (message.content.toLowerCase() === "!whitelist") {
-    const userId = message.author.id;
-    const now = Date.now();
-
-    // Verificar cooldown
-    if (cooldowns[userId] && now - cooldowns[userId] < 6 * 60 * 60 * 1000) {
-      const remaining = 6 * 60 * 60 * 1000 - (now - cooldowns[userId]);
-      const hours = Math.floor(remaining / (1000 * 60 * 60));
-      const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-      return message.reply(`⚠️ Ya hiciste un intento de whitelist. Debes esperar ${hours}h ${minutes}m antes de intentarlo de nuevo.`);
-    }
-
-    // Guardar el intento
-    cooldowns[userId] = now;
-
-    // Aquí inicia el examen normalmente
-    respuestasUsuarios[userId] = { index: 0, correctas: 0 };
-    message.channel.send(`🔎 Comenzamos tu examen. Responde con a, b, c o d.`);
-    mandarPregunta(message);
+    await interaction.reply({ content: `✅ Ticket de soporte creado: ${channel}`, ephemeral: true });
+    await channel.send(`👋 Hola ${interaction.user}, explica tu problema y un miembro del staff te atenderá.`);
   }
 });
 
 // ---- LOGIN ----
 client.login(process.env.TOKEN);
+
