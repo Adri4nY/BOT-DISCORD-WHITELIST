@@ -281,5 +281,32 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 
+const cooldowns = {}; // { userId: timestamp }
+
+client.on("messageCreate", async (message) => {
+  if (message.author.bot) return;
+
+  if (message.content.toLowerCase() === "!whitelist") {
+    const userId = message.author.id;
+    const now = Date.now();
+
+    // Verificar cooldown
+    if (cooldowns[userId] && now - cooldowns[userId] < 6 * 60 * 60 * 1000) {
+      const remaining = 6 * 60 * 60 * 1000 - (now - cooldowns[userId]);
+      const hours = Math.floor(remaining / (1000 * 60 * 60));
+      const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+      return message.reply(`⚠️ Ya hiciste un intento de whitelist. Debes esperar ${hours}h ${minutes}m antes de intentarlo de nuevo.`);
+    }
+
+    // Guardar el intento
+    cooldowns[userId] = now;
+
+    // Aquí inicia el examen normalmente
+    respuestasUsuarios[userId] = { index: 0, correctas: 0 };
+    message.channel.send(`🔎 Comenzamos tu examen. Responde con a, b, c o d.`);
+    mandarPregunta(message);
+  }
+});
+
 // ---- LOGIN ----
 client.login(process.env.TOKEN);
