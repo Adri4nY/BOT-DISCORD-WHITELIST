@@ -9,19 +9,15 @@ const {
   PermissionsBitField,
 } = require("discord.js");
 const fs = require("fs");
-
-// Servidor web para mantener el bot activo
 const express = require('express');
+
+// ------------------- Servidor web para mantener vivo ------------------- //
 const app = express();
 const PORT = process.env.PORT || 3000;
-
 app.get('/', (req, res) => res.send('✅ Bot activo y funcionando en Railway!'));
+app.listen(PORT, () => console.log(`🌐 Servidor web activo en puerto ${PORT}`));
 
-app.listen(PORT, () => {
-  console.log(`🌐 Servidor web activo en puerto ${PORT}`);
-});
-
-// Crea el cliente
+// ------------------- Cliente Discord ------------------- //
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -32,33 +28,33 @@ const client = new Client({
   partials: [Partials.Channel],
 });
 
-// Lee las preguntas
+// ------------------- Config ------------------- //
 const preguntas = JSON.parse(fs.readFileSync("preguntas.json", "utf8"));
+const LOG_CHANNEL_ID = "1422893357042110546";           // Canal de logs
+const WHITELIST_CATEGORY_ID = "1422897937427464203";    // Categoría whitelist
+const SOPORTE_CATEGORY_ID = "1422898157829881926";      // Categoría soporte
+const COOLDOWN_HORAS = 6;
+const ROLES = {
+  whitelist: "822529294365360139",   // Rol de whitelist
+  sinWhitelist: "1320037024358600734" // Rol de sin whitelist
+};
 
-// Canal de logs (cambia por el ID real)
-const LOG_CHANNEL_ID = "1422893357042110546";
-
-// Categorías (cambia los IDs por los de tu servidor)
-const WHITELIST_CATEGORY_ID = "1422897937427464203";
-const SOPORTE_CATEGORY_ID = "1422898157829881926";
-
-// Cooldowns
+// ------------------- Cooldowns ------------------- //
 const cooldowns = {}; // { userId: timestamp }
 
+// ------------------- READY ------------------- //
 client.once("ready", () => {
   console.log(`✅ Bot iniciado como: ${client.user.tag}`);
 });
 
-// ---- COMANDO !setup-whitelist ----
+// ------------------- Setup Whitelist ------------------- //
 client.on("messageCreate", async (message) => {
   if (!message.content.startsWith("!setup-whitelist") || message.author.bot)
     return;
 
   const embed = new EmbedBuilder()
     .setTitle("📋 Sistema de Whitelist")
-    .setDescription(
-      "Pulsa el botón para iniciar tu whitelist. Tendrás 1 minuto para responder cada pregunta.",
-    )
+    .setDescription("Pulsa el botón para iniciar tu whitelist. Tendrás 1 minuto por pregunta.")
     .setColor("Purple");
 
   const row = new ActionRowBuilder().addComponents(
@@ -71,7 +67,7 @@ client.on("messageCreate", async (message) => {
   await message.channel.send({ embeds: [embed], components: [row] });
 });
 
-// ---- COMANDO !setup-soporte ----
+// ------------------- Setup Soporte ------------------- //
 client.on("messageCreate", async (message) => {
   if (!message.content.startsWith("!setup-soporte") || message.author.bot)
     return;
@@ -91,14 +87,8 @@ client.on("messageCreate", async (message) => {
   await message.channel.send({ embeds: [embed], components: [row] });
 });
 
-// ---- FUNCIÓN PARA PREGUNTAS ----
-async function hacerPregunta(
-  channel,
-  usuario,
-  pregunta,
-  index,
-  totalPreguntas,
-) {
+// ------------------- Función hacer pregunta ------------------- //
+async function hacerPregunta(channel, usuario, pregunta, index, total) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId("a").setLabel("a").setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId("b").setLabel("b").setStyle(ButtonStyle.Secondary),
@@ -111,7 +101,7 @@ async function hacerPregunta(
     .join("\n");
 
   const embed = new EmbedBuilder()
-    .setTitle(`❓ Pregunta ${index + 1} de ${totalPreguntas}`)
+    .setTitle(`❓ Pregunta ${index + 1} de ${total}`)
     .setDescription(`**${pregunta.pregunta}**\n\n${opciones}`)
     .setColor("Purple");
 
@@ -134,18 +124,18 @@ async function hacerPregunta(
   });
 }
 
-// ---- MANEJADOR DE BOTONES ----
+// ------------------- Manejo de botones ------------------- //
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isButton()) return;
 
-  // --- BOTÓN WHITELIST ---
+  // ------------------- WHITELIST ------------------- //
   if (interaction.customId === "whitelist") {
     const userId = interaction.user.id;
     const now = Date.now();
 
-    // Verificar cooldown de 6 horas
-    if (cooldowns[userId] && now - cooldowns[userId] < 6 * 60 * 60 * 1000) {
-      const remaining = 6 * 60 * 60 * 1000 - (now - cooldowns[userId]);
+    // Check cooldown
+    if (cooldowns[userId] && now - cooldowns[userId] < COOLDOWN_HORAS * 60 * 60 * 1000) {
+      const remaining = COOLDOWN_HORAS * 60 * 60 * 1000 - (now - cooldowns[userId]);
       const hours = Math.floor(remaining / (1000 * 60 * 60));
       const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
       return interaction.reply({
@@ -154,7 +144,6 @@ client.on("interactionCreate", async (interaction) => {
       });
     }
 
-    // Guardar intento
     cooldowns[userId] = now;
 
     const guild = interaction.guild;
@@ -169,23 +158,15 @@ client.on("interactionCreate", async (interaction) => {
       ],
     });
 
-    await interaction.reply({
-      content: `✅ Ticket de whitelist creado: ${channel}`,
-      ephemeral: true,
-    });
+    await interaction.reply({ content: `✅ Ticket de whitelist creado: ${channel}`, ephemeral: true });
 
     let puntaje = 0;
-
-    // Hacer las preguntas
     for (let i = 0; i < preguntas.length; i++) {
       const respuesta = await hacerPregunta(channel, interaction.user, preguntas[i], i, preguntas.length);
-
       if (respuesta && respuesta === preguntas[i].respuesta) puntaje++;
     }
 
-    // Resultado final
     const aprobado = puntaje >= 9;
-
     const resultadoEmbed = new EmbedBuilder()
       .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
       .setDescription(
@@ -200,29 +181,26 @@ client.on("interactionCreate", async (interaction) => {
     if (aprobado) {
       try {
         const member = await guild.members.fetch(interaction.user.id);
-        await member.roles.add("822529294365360139"); // ID rol whitelist
-        await member.roles.remove("1320037024358600734"); // ID rol sin whitelist
+        await member.roles.add(ROLES.whitelist);
+        await member.roles.remove(ROLES.sinWhitelist);
         await channel.send("🎉 ¡Felicidades! Has recibido el rol de **Whitelist**.");
       } catch (err) {
-        console.error("❌ Error al asignar o quitar el rol:", err);
-        await channel.send("⚠️ Ocurrió un error al asignarte o quitarte el rol, avisa a un staff.");
+        console.error("❌ Error al asignar rol:", err);
+        await channel.send("⚠️ Error al asignar o quitar el rol, avisa a un staff.");
       }
     }
 
     // Log
     const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
-    if (logChannel) {
-      logChannel.send({ content: `${interaction.user}`, embeds: [resultadoEmbed] });
-    }
+    if (logChannel) logChannel.send({ content: `${interaction.user}`, embeds: [resultadoEmbed] });
 
-    // Cerrar ticket después de 30 segundos
+    // Cerrar ticket automáticamente
     setTimeout(() => channel.delete().catch(() => {}), 30000);
   }
 
-  // --- BOTÓN SOPORTE ---
+  // ------------------- SOPORTE ------------------- //
   if (interaction.customId === "soporte") {
     const guild = interaction.guild;
-
     const channel = await guild.channels.create({
       name: `soporte-${interaction.user.username}`,
       type: 0,
@@ -238,6 +216,5 @@ client.on("interactionCreate", async (interaction) => {
   }
 });
 
-// ---- LOGIN ----
+// ------------------- LOGIN ------------------- //
 client.login(process.env.TOKEN);
-
