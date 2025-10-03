@@ -7,9 +7,7 @@ const {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
-  PermissionsBitField,
-  REST,
-  Routes
+  PermissionsBitField
 } = require("discord.js");
 const fs = require("fs");
 const express = require("express");
@@ -89,11 +87,11 @@ async function hacerPregunta(channel, usuario, pregunta, index, total) {
   });
 }
 
-// ------------------- Manejo de interacciones ------------------- //
+// ------------------- Comandos de Interacción ------------------- //
 client.on("interactionCreate", async (interaction) => {
   const guild = interaction.guild;
 
-  // ---- Setup Soporte ----
+  // ---- Setup Soporte con Select Menu ----
   if (interaction.isCommand() && interaction.commandName === "setup-soporte") {
     const embed = new EmbedBuilder()
       .setTitle("🎫 Sistema de Tickets - UNITY CITY")
@@ -117,21 +115,7 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.reply({ embeds: [embed], components: [row] });
   }
 
-  // ---- Setup Whitelist ----
-  if (interaction.isCommand() && interaction.commandName === "setup-whitelist") {
-    const embed = new EmbedBuilder()
-      .setTitle("📋 Sistema de Whitelist")
-      .setDescription("Pulsa el botón para iniciar tu whitelist. Tendrás 1 minuto por pregunta.")
-      .setColor("Purple");
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId("whitelist").setLabel("Iniciar Whitelist").setStyle(ButtonStyle.Primary)
-    );
-
-    await interaction.reply({ embeds: [embed], components: [row] });
-  }
-
-  // ---- Manejo del Select Menu de tickets ----
+  // ---- Select Menu de Tickets ----
   if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
     const ticketMap = {
       soporte_general: { cat: SOPORTE_CATEGORY_ID, label: "🟢 Ticket de Soporte General" },
@@ -143,6 +127,7 @@ client.on("interactionCreate", async (interaction) => {
     };
 
     const { cat, label } = ticketMap[interaction.values[0]];
+
     const channel = await guild.channels.create({
       name: `${interaction.values[0]}-${interaction.user.username}`,
       type: 0,
@@ -153,6 +138,7 @@ client.on("interactionCreate", async (interaction) => {
       ]
     });
 
+    // Confirmación privada al usuario
     await interaction.reply({ content: `✅ Ticket creado: ${channel}`, ephemeral: true });
 
     const embedTicket = new EmbedBuilder()
@@ -168,13 +154,13 @@ client.on("interactionCreate", async (interaction) => {
     await channel.send({ embeds: [embedTicket], components: [rowCerrar] });
   }
 
-  // ---- Cerrar ticket ----
+  // ---- Botón cerrar ticket ----
   if (interaction.isButton() && interaction.customId === "cerrar_ticket") {
-    await interaction.reply("⏳ Cerrando ticket en 5 segundos...");
+    await interaction.reply({ content: "⏳ Cerrando ticket en 5 segundos...", ephemeral: true });
     setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
   }
 
-  // ---- Manejo de Whitelist ----
+  // ---- Botón Whitelist ----
   if (interaction.isButton() && interaction.customId === "whitelist") {
     const userId = interaction.user.id;
     const now = Date.now();
@@ -213,8 +199,8 @@ client.on("interactionCreate", async (interaction) => {
     const resultadoEmbed = new EmbedBuilder()
       .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
       .setDescription(aprobado
-        ? `🎉 ¡Felicidades ${interaction.user}, has aprobado la whitelist!\n\n**Puntaje:** ${puntaje}/${preguntas.length}`
-        : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist.\n\n**Puntaje:** ${puntaje}/${preguntas.length}`)
+        ? `🎉 ¡Felicidades ${interaction.user}, has aprobado la whitelist!\n**Puntaje:** ${puntaje}/${preguntas.length}`
+        : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
       .setColor(aprobado ? "Green" : "Red");
 
     await channel.send({ embeds: [resultadoEmbed] });
@@ -257,4 +243,3 @@ client.on("guildMemberAdd", async (member) => {
 
 // ------------------- Login ------------------- //
 client.login(process.env.TOKEN);
-
