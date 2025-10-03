@@ -250,9 +250,9 @@ client.on("interactionCreate", async (interaction) => {
     const embed = new EmbedBuilder()
       .setTitle("Soporte")
       .setDescription(`**@${interaction.user.username}**, explica tu consulta. El staff te atenderá pronto.`)
-      .setImage('URL_DE_LA_IMAGEN') // Reemplaza con la URL de la imagen que desees mostrar
-      .setFooter('Paralelo Studios')
-      .setColor("Blue")
+      .setImage('https://i.imgur.com/gy3kCX4.png') // Reemplaza con la URL de la imagen que desees mostrar
+      .setFooter('UNITY CITY RP')
+      .setColor("Purple")
       .setTimestamp();
 
     await interaction.reply({ content: `✅ Ticket de soporte creado: ${channel}`, ephemeral: true });
