@@ -95,7 +95,7 @@ client.on("interactionCreate", async (interaction) => {
   if (interaction.isCommand() && interaction.commandName === "setup-soporte") {
     const embed = new EmbedBuilder()
       .setTitle("🎫 Sistema de Tickets - UNITY CITY")
-      .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
+      .setDescription("Bienvenidos al sistema de tickets de UNITY CITY aquí encontrarás todas las opciones de tickets que podrás abrir, dependiendo del problema o duda que tengas podrás elegir el que se adecue a estas. Selecciona el tipo de ticket que quieras abrir 👇")
       .setColor("Purple");
 
     const row = new ActionRowBuilder().addComponents(
