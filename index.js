@@ -35,8 +35,8 @@ const WHITELIST_CATEGORY_ID = "1422897937427464203";    // Categoría whitelist
 const SOPORTE_CATEGORY_ID = "1422898157829881926";      // Categoría soporte
 const COOLDOWN_HORAS = 6;
 const ROLES = {
-  whitelist: "822529294365360139",   // Rol de whitelist
-  sinWhitelist: "1320037024358600734" // Rol de sin whitelist
+  whitelist: "822529294365360139",
+  sinWhitelist: "1320037024358600734"
 };
 
 // ------------------- Cooldowns ------------------- //
@@ -45,56 +45,11 @@ const cooldowns = {}; // { userId: timestamp }
 // ------------------- READY ------------------- //
 client.on("ready", () => {
   console.log(`✅ Bot iniciado como: ${client.user.tag}`);
-
-  // Establecer estado
   client.user.setPresence({
-    activities: [{ name: "UNITY CITY 🎮", type: 0 }], // 0 = Playing
-    status: "online" // opciones: "online", "idle", "dnd", "invisible"
+    activities: [{ name: "UNITY CITY 🎮", type: 0 }],
+    status: "online"
   });
 });
-
-
-// ------------------- Setup Whitelist ------------------- //
-client.on("messageCreate", async (message) => {
-  if (!message.content.startsWith("!setup-whitelist") || message.author.bot)
-    return;
-
-  const embed = new EmbedBuilder()
-    .setTitle("📋 Sistema de Whitelist")
-    .setDescription("Pulsa el botón para iniciar tu whitelist. Tendrás 1 minuto por pregunta.")
-    .setColor("Purple");
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("whitelist")
-      .setLabel("Iniciar Whitelist")
-      .setStyle(ButtonStyle.Primary),
-  );
-
-  await message.channel.send({ embeds: [embed], components: [row] });
-});
-
-  // Comando para resetear cooldown
-  if (message.content.startsWith("!resetcooldown")) {
-    // Solo admins pueden usarlo
-    if (!message.member.permissions.has("Administrator")) {
-      return message.reply("❌ No tienes permisos para usar este comando.");
-    }
-
-    // Obtener mención o ID del usuario
-    const args = message.content.split(" ");
-    const userId = args[1]?.replace(/[<@!>]/g, ""); // elimina caracteres <@!>
-
-    if (!userId || !cooldowns[userId]) {
-      return message.reply("❌ Usuario no encontrado o no tiene cooldown.");
-    }
-
-    // Eliminar cooldown
-    delete cooldowns[userId];
-    message.channel.send(`✅ Se ha reseteado el cooldown de <@${userId}>.`);
-  }
-});
-
 
 // ------------------- Función hacer pregunta ------------------- //
 async function hacerPregunta(channel, usuario, pregunta, index, total) {
@@ -105,12 +60,9 @@ async function hacerPregunta(channel, usuario, pregunta, index, total) {
     new ButtonBuilder().setCustomId("d").setLabel("d").setStyle(ButtonStyle.Secondary),
   );
 
- const opciones = pregunta.opciones
-  .map((texto, index) => {
-    const letra = String.fromCharCode(97 + index); // 'a', 'b', 'c', 'd'
-    return `${letra}) ${texto}`;
-  })
-  .join("\n");
+  const opciones = pregunta.opciones
+    .map((texto, i) => `${String.fromCharCode(97 + i)}) ${texto}`)
+    .join("\n");
 
   const embed = new EmbedBuilder()
     .setTitle(`❓ Pregunta ${index + 1} de ${total}`)
@@ -121,8 +73,7 @@ async function hacerPregunta(channel, usuario, pregunta, index, total) {
 
   return new Promise((resolve) => {
     const filter = (i) => i.user.id === usuario.id;
-    channel
-      .awaitMessageComponent({ filter, time: 60000 })
+    channel.awaitMessageComponent({ filter, time: 60000 })
       .then(async (interaction) => {
         interaction.deferUpdate().catch(() => {});
         await msg.delete().catch(() => {});
@@ -136,16 +87,73 @@ async function hacerPregunta(channel, usuario, pregunta, index, total) {
   });
 }
 
+// ------------------- Manejo de mensajes ------------------- //
+client.on("messageCreate", async (message) => {
+  if (message.author.bot) return;
+
+  // ---- Setup Whitelist ----
+  if (message.content.startsWith("!setup-whitelist")) {
+    const embed = new EmbedBuilder()
+      .setTitle("📋 Sistema de Whitelist")
+      .setDescription("Pulsa el botón para iniciar tu whitelist. Tendrás 1 minuto por pregunta.")
+      .setColor("Purple");
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("whitelist")
+        .setLabel("Iniciar Whitelist")
+        .setStyle(ButtonStyle.Primary)
+    );
+
+    await message.channel.send({ embeds: [embed], components: [row] });
+  }
+
+  // ---- Resetear cooldown ----
+  if (message.content.startsWith("!resetcooldown")) {
+    if (!message.member.permissions.has("Administrator")) {
+      return message.reply("❌ No tienes permisos para usar este comando.");
+    }
+
+    const args = message.content.split(" ");
+    const userId = args[1]?.replace(/[<@!>]/g, "");
+    if (!userId || !cooldowns[userId]) {
+      return message.reply("❌ Usuario no encontrado o no tiene cooldown.");
+    }
+
+    delete cooldowns[userId];
+    message.channel.send(`✅ Se ha reseteado el cooldown de <@${userId}>.`);
+  }
+
+  // ---- Setup Soporte ----
+  if (message.content.startsWith("!setup-soporte")) {
+    const embed = new EmbedBuilder()
+      .setTitle("🎫 Sistema de Tickets - UNITY CITY")
+      .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
+      .setColor("Purple");
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("soporte_general").setLabel("Soporte").setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId("reportes").setLabel("Reportes").setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId("ck").setLabel("CK").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("donaciones").setLabel("Donaciones").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId("facciones").setLabel("Facciones").setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId("postulacion").setLabel("Postulación").setStyle(ButtonStyle.Secondary)
+    );
+
+    await message.channel.send({ embeds: [embed], components: [row] });
+  }
+});
+
 // ------------------- Manejo de botones ------------------- //
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isButton()) return;
+  const guild = interaction.guild;
 
-  // ------------------- WHITELIST ------------------- //
+  // ---- WHITELIST ----
   if (interaction.customId === "whitelist") {
     const userId = interaction.user.id;
     const now = Date.now();
 
-    // Check cooldown
     if (cooldowns[userId] && now - cooldowns[userId] < COOLDOWN_HORAS * 60 * 60 * 1000) {
       const remaining = COOLDOWN_HORAS * 60 * 60 * 1000 - (now - cooldowns[userId]);
       const hours = Math.floor(remaining / (1000 * 60 * 60));
@@ -157,8 +165,6 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     cooldowns[userId] = now;
-
-    const guild = interaction.guild;
 
     const channel = await guild.channels.create({
       name: `whitelist-${interaction.user.username}`,
@@ -181,11 +187,9 @@ client.on("interactionCreate", async (interaction) => {
     const aprobado = puntaje >= 9;
     const resultadoEmbed = new EmbedBuilder()
       .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
-      .setDescription(
-        aprobado
-          ? `🎉 ¡Felicidades ${interaction.user}, has aprobado la whitelist!\n\n**Puntaje:** ${puntaje}/${preguntas.length}`
-          : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist.\n\n**Puntaje:** ${puntaje}/${preguntas.length}`,
-      )
+      .setDescription(aprobado
+        ? `🎉 ¡Felicidades ${interaction.user}, has aprobado la whitelist!\n\n**Puntaje:** ${puntaje}/${preguntas.length}`
+        : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist.\n\n**Puntaje:** ${puntaje}/${preguntas.length}`)
       .setColor(aprobado ? "Green" : "Red");
 
     await channel.send({ embeds: [resultadoEmbed] });
@@ -202,192 +206,64 @@ client.on("interactionCreate", async (interaction) => {
       }
     }
 
-    // Log
     const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
     if (logChannel) logChannel.send({ content: `${interaction.user}`, embeds: [resultadoEmbed] });
 
-    // Cerrar ticket automáticamente
     setTimeout(() => channel.delete().catch(() => {}), 30000);
+    return;
   }
 
-// ---- COMANDO !setup-soporte ----
-client.on("messageCreate", async (message) => {
-  if (!message.content.startsWith("!setup-soporte") || message.author.bot) return;
+  // ---- TICKETS DE SOPORTE ----
+  const ticketMap = {
+    soporte_general: { cat: SOPORTE_CATEGORY_ID, label: "🟢 Ticket de Soporte General" },
+    reportes: { cat: "1423746566610620568", label: "🐞 Ticket de Reportes" },
+    ck: { cat: "1423746747741765632", label: "💀 Ticket de CK" },
+    donaciones: { cat: "1423747380637073489", label: "💸 Ticket de Donaciones" },
+    facciones: { cat: "1423747506382311485", label: "🏢 Ticket de Facciones" },
+    postulacion: { cat: "1423747604495466536", label: "📋 Ticket de Postulación" }
+  };
 
-  const embed = new EmbedBuilder()
-    .setTitle("🎫 Sistema de Tickets - UNITY CITY")
-    .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
-    .setColor("Purple");
+  if (ticketMap[interaction.customId]) {
+    const { cat, label } = ticketMap[interaction.customId];
+    const channel = await guild.channels.create({
+      name: `${interaction.customId}-${interaction.user.username}`,
+      type: 0,
+      parent: cat,
+      permissionOverwrites: [
+        { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+      ]
+    });
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("soporte_general")
-      .setLabel("Soporte")
-      .setStyle(ButtonStyle.Primary),
+    await interaction.reply({ content: `✅ Ticket creado: ${channel}`, ephemeral: true });
 
-    new ButtonBuilder()
-      .setCustomId("reportes")
-      .setLabel("Reportes")
-      .setStyle(ButtonStyle.Danger),
-
-    new ButtonBuilder()
-      .setCustomId("ck")
-      .setLabel("CK")
-      .setStyle(ButtonStyle.Secondary),
-
-    new ButtonBuilder()
-      .setCustomId("donaciones")
-      .setLabel("Donaciones")
-      .setStyle(ButtonStyle.Success),
-
-    new ButtonBuilder()
-      .setCustomId("facciones")
-      .setLabel("Facciones")
-      .setStyle(ButtonStyle.Primary),
-
-    new ButtonBuilder()
-      .setCustomId("postulacion")
-      .setLabel("Postulación")
-      .setStyle(ButtonStyle.Secondary),
-  );
-
-  await message.channel.send({ embeds: [embed], components: [row] });
-});
-
-
-// ---- MANEJADOR DE TICKETS ----
-client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isButton()) return;
-  const guild = interaction.guild;
-
-  let categoriaId;
-  let nombreTicket;
-  let titulo;
-
-  switch (interaction.customId) {
-    case "soporte_general":
-      categoriaId = "1422898157829881926";
-      nombreTicket = `soporte-${interaction.user.username}`;
-      titulo = "🟢 Ticket de Soporte General";
-      break;
-
-    case "reportes":
-      categoriaId = "1423746566610620568";
-      nombreTicket = `reporte-${interaction.user.username}`;
-      titulo = "🐞 Ticket de Reportes";
-      break;
-
-    case "ck":
-      categoriaId = "1423746747741765632";
-      nombreTicket = `ck-${interaction.user.username}`;
-      titulo = "💀 Ticket de CK";
-      break;
-
-    case "donaciones":
-      categoriaId = "1423747380637073489";
-      nombreTicket = `donacion-${interaction.user.username}`;
-      titulo = "💸 Ticket de Donaciones";
-      break;
-
-    case "facciones":
-      categoriaId = "1423747506382311485";
-      nombreTicket = `faccion-${interaction.user.username}`;
-      titulo = "🏢 Ticket de Facciones";
-      break;
-
-    case "postulacion":
-      categoriaId = "1423747604495466536";
-      nombreTicket = `postulacion-${interaction.user.username}`;
-      titulo = "📋 Ticket de Postulación";
-      break;
-
-    default:
-      return;
-  }
-
-  // Crear canal de ticket
-  const channel = await guild.channels.create({
-    name: nombreTicket,
-    type: 0, // Canal de texto
-    parent: categoriaId,
-    permissionOverwrites: [
-      {
-        id: guild.id,
-        deny: [PermissionsBitField.Flags.ViewChannel],
-      },
-      {
-        id: interaction.user.id,
-        allow: [
-          PermissionsBitField.Flags.ViewChannel,
-          PermissionsBitField.Flags.SendMessages,
-        ],
-      },
-    ],
-  });
-
-  await interaction.reply({
-    content: `✅ Ticket creado: ${channel}`,
-    flags: 64,
-  });
-
-  // Embed dentro del ticket
-  const embedTicket = new EmbedBuilder()
-    .setTitle(titulo)
-    .setDescription(
-      `👋 Hola ${interaction.user}, gracias por abrir un ticket de **${titulo}**.\n\nUn miembro del staff te atenderá pronto. 🚀`
-    )
-    .setColor("Blue")
-    .setTimestamp();
-
-  const rowCerrar = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("cerrar_ticket")
-      .setLabel("Cerrar Ticket")
-      .setStyle(ButtonStyle.Danger),
-  );
-
-  await channel.send({ embeds: [embedTicket], components: [rowCerrar] });
-});
-
-
-// ---- MANEJADOR PARA CERRAR TICKET ----
-client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isButton()) return;
-
-  if (interaction.customId === "cerrar_ticket") {
-    await interaction.reply("⏳ Cerrando ticket en 5 segundos...");
-    setTimeout(() => {
-      interaction.channel.delete().catch(() => {});
-    }, 5000);
-  }
-});
-
-
-    // Mencionar al usuario
-    const embed = new EmbedBuilder()
-      .setTitle("Soporte")
-      .setDescription(`**@${interaction.user.username}**, explica tu consulta. El staff te atenderá pronto.`)
-      .setImage('https://imgur.com/a/ULs0Zr1')
-      .setFooter({ text: 'UNITY CITY RP' })
-      .setColor("Purple")
+    const embedTicket = new EmbedBuilder()
+      .setTitle(label)
+      .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**.\n\nUn miembro del staff te atenderá pronto. 🚀`)
+      .setColor("Blue")
       .setTimestamp();
 
-    await interaction.reply({ content: `✅ Ticket de soporte creado: ${channel}`, ephemeral: true });
-    await channel.send({ content: `<@${interaction.user.id}>`, embeds: [embed] });
+    const rowCerrar = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("cerrar_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger)
+    );
+
+    await channel.send({ embeds: [embedTicket], components: [rowCerrar] });
+    return;
+  }
+
+  // ---- CERRAR TICKET ----
+  if (interaction.customId === "cerrar_ticket") {
+    await interaction.reply("⏳ Cerrando ticket en 5 segundos...");
+    setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
   }
 });
 
-// BIENVENIDAS
-
+// ------------------- Bienvenidas ------------------- //
 client.on("guildMemberAdd", async (member) => {
-  // ID del canal de bienvenida
-  const canalBienvenida = "1422298345241841824"; // <- pon aquí la ID de tu canal
-
-  // Buscar el canal
+  const canalBienvenida = "1422298345241841824";
   const channel = member.guild.channels.cache.get(canalBienvenida);
   if (!channel) return console.error("❌ No encontré el canal de bienvenida.");
 
-  // Crear el embed
   const embed = new EmbedBuilder()
     .setTitle("🎉 ¡Nuevo miembro en **UNITY CITY**!")
     .setDescription(
@@ -400,7 +276,6 @@ client.on("guildMemberAdd", async (member) => {
     .setFooter({ text: "UNITY CITY RP", iconURL: member.guild.iconURL() })
     .setTimestamp();
 
-  // Enviar el embed
   channel.send({ embeds: [embed] });
 });
 
