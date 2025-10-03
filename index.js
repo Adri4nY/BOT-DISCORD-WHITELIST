@@ -121,24 +121,44 @@ client.on("messageCreate", async (message) => {
     delete cooldowns[userId];
     message.channel.send(`✅ Se ha reseteado el cooldown de <@${userId}>.`);
   }
+client.on("messageCreate", async (message) => {
+  if (message.author.bot) return;
 
   // ---- Setup Soporte ----
   if (message.content.startsWith("!setup-soporte")) {
-    const embed = new EmbedBuilder()
-      .setTitle("🎫 Sistema de Tickets - UNITY CITY")
-      .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
-      .setColor("Purple");
+    try {
+      // Verificar que el bot pueda enviar mensajes y embeds
+      const botMember = await message.guild.members.fetch(client.user.id);
+      const botPerms = message.channel.permissionsFor(botMember);
+      if (!botPerms.has("SendMessages") || !botPerms.has("EmbedLinks") || !botPerms.has("UseExternalEmojis")) {
+        return message.reply("❌ No tengo permisos suficientes para enviar el panel de tickets en este canal.");
+      }
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId("soporte_general").setLabel("Soporte").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId("reportes").setLabel("Reportes").setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId("ck").setLabel("CK").setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("donaciones").setLabel("Donaciones").setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId("facciones").setLabel("Facciones").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId("postulacion").setLabel("Postulación").setStyle(ButtonStyle.Secondary)
-    );
+      // Embed del panel de soporte
+      const embed = new EmbedBuilder()
+        .setTitle("🎫 Sistema de Tickets - UNITY CITY")
+        .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
+        .setColor("Purple");
 
-    await message.channel.send({ embeds: [embed], components: [row] });
+      // Botones
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId("soporte_general").setLabel("Soporte").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId("reportes").setLabel("Reportes").setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId("ck").setLabel("CK").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("donaciones").setLabel("Donaciones").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId("facciones").setLabel("Facciones").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId("postulacion").setLabel("Postulación").setStyle(ButtonStyle.Secondary)
+      );
+
+      // Enviar el embed con botones
+      await message.channel.send({ embeds: [embed], components: [row] });
+
+      // Confirmación para el administrador
+      await message.reply({ content: "✅ Panel de soporte creado correctamente.", ephemeral: true });
+    } catch (err) {
+      console.error("Error al ejecutar !setup-soporte:", err);
+      message.reply("❌ Ocurrió un error al crear el panel de tickets. Revisa la consola.");
+    }
   }
 });
 
