@@ -45,7 +45,7 @@
       "Si puedo usar esta expresión. Le diría a un jugador; Usa músculo F para subirte",
       "No puedo usar esta expresión porque es considerada anti-rol (Es una expresión OOC)"
     ],
-    "respuesta": "c"
+    "respuesta": "b"
   },
   {
     "pregunta": "¿Qué es Fair-play?",
@@ -65,7 +65,7 @@
       "Depende",
       "No puedo recordar  desde cuando estas inconsciente(Muerto) hasta que te reaniman (ese trayecto)"
     ],
-    "respuesta": "c"
+    "respuesta": "b"
   },
   {
     "pregunta": "Si un policía te detiene en rol, ¿qué debes hacer?",
@@ -75,7 +75,7 @@
       "Seguir el rol y acatar las órdenes",
       "Insultarlo por OOC"
     ],
-    "respuesta": "d"
+    "respuesta": "c"
   },
   {
     "pregunta": "¿Cuál de los siguientes ejemplos respeta la normativa sobre el rol de heridas?",
