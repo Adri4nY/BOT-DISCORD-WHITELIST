@@ -29,9 +29,9 @@ const ROLES = {
   sinWhitelist: "1320037024358600734",
 };
 const MOD_ROLES = {
-  moderador: "ID_ROL_MODERADOR",
-  soporte: "ID_ROL_SOPORTE",
-  admin: "ID_ROL_ADMIN"
+  moderador: "1226606346967973900",
+  soporte: "1226606408682700862",
+  admin: "1203773772868620308"
 };
 const cooldowns = {};
 
@@ -211,8 +211,8 @@ client.on("interactionCreate", async (interaction) => {
     : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
   .setColor(aprobado ? "Green" : "Red");
 
-    const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
-    if (logChannel) logChannel.send({ content: `✅ Resultado de la whitelist:`, embeds: [resultadoEmbed] });
+   const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+   if (logChannel) logChannel.send({ embeds: [resultadoEmbed] });
 
     await channel.send({ embeds: [resultadoEmbed] });
 
