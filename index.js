@@ -251,7 +251,7 @@ client.on("interactionCreate", async (interaction) => {
       .setTitle("Soporte")
       .setDescription(`**@${interaction.user.username}**, explica tu consulta. El staff te atenderá pronto.`)
       .setImage('https://i.imgur.com/gy3kCX4.png') // Reemplaza con la URL de la imagen que desees mostrar
-      .setFooter('UNITY CITY RP')
+      .setFooter({ text: 'UNITY CITY RP' })
       .setColor("Purple")
       .setTimestamp();
 
