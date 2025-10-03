@@ -9,13 +9,25 @@ const {
   PermissionsBitField,
 } = require("discord.js");
 const fs = require("fs");
-const express = require('express');
+const express = require("express");
 
-// ------------------- Servidor web para mantener vivo ------------------- //
+// ------------------- Servidor web ------------------- //
 const app = express();
 const PORT = process.env.PORT || 3000;
-app.get('/', (req, res) => res.send('✅ Bot activo y funcionando en Railway!'));
+app.get("/", (req, res) => res.send("✅ Bot activo y funcionando!"));
 app.listen(PORT, () => console.log(`🌐 Servidor web activo en puerto ${PORT}`));
+
+// ------------------- Config ------------------- //
+const preguntas = JSON.parse(fs.readFileSync("preguntas.json", "utf8"));
+const LOG_CHANNEL_ID = "1422893357042110546";
+const WHITELIST_CATEGORY_ID = "1422897937427464203";
+const SOPORTE_CATEGORY_ID = "1422898157829881926";
+const COOLDOWN_HORAS = 6;
+const ROLES = {
+  whitelist: "822529294365360139",
+  sinWhitelist: "1320037024358600734",
+};
+const cooldowns = {};
 
 // ------------------- Cliente Discord ------------------- //
 const client = new Client({
@@ -28,26 +40,11 @@ const client = new Client({
   partials: [Partials.Channel],
 });
 
-// ------------------- Config ------------------- //
-const preguntas = JSON.parse(fs.readFileSync("preguntas.json", "utf8"));
-const LOG_CHANNEL_ID = "1422893357042110546";           // Canal de logs
-const WHITELIST_CATEGORY_ID = "1422897937427464203";    // Categoría whitelist
-const SOPORTE_CATEGORY_ID = "1422898157829881926";      // Categoría soporte
-const COOLDOWN_HORAS = 6;
-const ROLES = {
-  whitelist: "822529294365360139",
-  sinWhitelist: "1320037024358600734"
-};
-
-// ------------------- Cooldowns ------------------- //
-const cooldowns = {}; // { userId: timestamp }
-
-// ------------------- READY ------------------- //
 client.on("ready", () => {
   console.log(`✅ Bot iniciado como: ${client.user.tag}`);
   client.user.setPresence({
     activities: [{ name: "UNITY CITY 🎮", type: 0 }],
-    status: "online"
+    status: "online",
   });
 });
 
@@ -57,7 +54,7 @@ async function hacerPregunta(channel, usuario, pregunta, index, total) {
     new ButtonBuilder().setCustomId("a").setLabel("a").setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId("b").setLabel("b").setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId("c").setLabel("c").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("d").setLabel("d").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("d").setLabel("d").setStyle(ButtonStyle.Secondary)
   );
 
   const opciones = pregunta.opciones
@@ -73,7 +70,8 @@ async function hacerPregunta(channel, usuario, pregunta, index, total) {
 
   return new Promise((resolve) => {
     const filter = (i) => i.user.id === usuario.id;
-    channel.awaitMessageComponent({ filter, time: 60000 })
+    channel
+      .awaitMessageComponent({ filter, time: 60000 })
       .then(async (interaction) => {
         interaction.deferUpdate().catch(() => {});
         await msg.delete().catch(() => {});
@@ -281,3 +279,4 @@ client.on("guildMemberAdd", async (member) => {
 
 // ------------------- LOGIN ------------------- //
 client.login(process.env.TOKEN);
+
