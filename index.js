@@ -246,10 +246,14 @@ client.on("interactionCreate", async (interaction) => {
       ],
     });
 
-    await interaction.reply({ content: `✅ Ticket de soporte creado: ${channel}`, ephemeral: true });
-    await channel.send(`👋 Hola ${interaction.user}, explica tu problema y un miembro del staff te atenderá.`);
-  }
-});
+    // Mencionar al usuario
+    const embed = new EmbedBuilder()
+      .setTitle("Soporte")
+      .setDescription(`**@${interaction.user.username}**, explica tu consulta. El staff te atenderá pronto.`)
+      .setImage('https://media.discordapp.net/attachments/1046845899051126864/1422713198766854255/unityyyy-removebg-preview.png?ex=68e0f82b&is=68dfa6ab&hm=1f214797a1ecda33a2140ad4bb944cc4d38726459cec2065e7737da17850f017&=&format=webp&quality=lossless') // Reemplaza con la URL de la imagen que desees mostrar
+      .setFooter('UNITY CITY RP')
+      .setColor("Purple")
+      .setTimestamp();
 
 // ------------------- LOGIN ------------------- //
 client.login(process.env.TOKEN);
