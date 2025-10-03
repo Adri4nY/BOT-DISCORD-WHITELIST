@@ -74,29 +74,6 @@ client.on("messageCreate", async (message) => {
   await message.channel.send({ embeds: [embed], components: [row] });
 });
 
-// ------------------- Setup Soporte ------------------- //
-client.on("messageCreate", async (message) => {
-  if (!message.content.startsWith("!setup-soporte") || message.author.bot)
-    return;
-
-  const embed = new EmbedBuilder()
-    .setTitle("🎫 Sistema de Soporte")
-    .setDescription("Pulsa el botón para abrir un ticket de soporte.")
-    .setColor("Green");
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("soporte")
-      .setLabel("Abrir Ticket de Soporte")
-      .setStyle(ButtonStyle.Secondary),
-  );
-
-  await message.channel.send({ embeds: [embed], components: [row] });
-});
-
-client.on("messageCreate", async (message) => {
-  if (message.author.bot) return;
-
   // Comando para resetear cooldown
   if (message.content.startsWith("!resetcooldown")) {
     // Solo admins pueden usarlo
@@ -233,18 +210,158 @@ client.on("interactionCreate", async (interaction) => {
     setTimeout(() => channel.delete().catch(() => {}), 30000);
   }
 
-  // ------------------- SOPORTE ------------------- //
-  if (interaction.customId === "soporte") {
-    const guild = interaction.guild;
-    const channel = await guild.channels.create({
-      name: `soporte-${interaction.user.username}`,
-      type: 0,
-      parent: SOPORTE_CATEGORY_ID,
-      permissionOverwrites: [
-        { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-      ],
-    });
+// ---- COMANDO !setup-soporte ----
+client.on("messageCreate", async (message) => {
+  if (!message.content.startsWith("!setup-soporte") || message.author.bot) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle("🎫 Sistema de Tickets - UNITY CITY")
+    .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
+    .setColor("Purple");
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("soporte_general")
+      .setLabel("Soporte")
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId("reportes")
+      .setLabel("Reportes")
+      .setStyle(ButtonStyle.Danger),
+
+    new ButtonBuilder()
+      .setCustomId("ck")
+      .setLabel("CK")
+      .setStyle(ButtonStyle.Secondary),
+
+    new ButtonBuilder()
+      .setCustomId("donaciones")
+      .setLabel("Donaciones")
+      .setStyle(ButtonStyle.Success),
+
+    new ButtonBuilder()
+      .setCustomId("facciones")
+      .setLabel("Facciones")
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId("postulacion")
+      .setLabel("Postulación")
+      .setStyle(ButtonStyle.Secondary),
+  );
+
+  await message.channel.send({ embeds: [embed], components: [row] });
+});
+
+
+// ---- MANEJADOR DE TICKETS ----
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isButton()) return;
+  const guild = interaction.guild;
+
+  let categoriaId;
+  let nombreTicket;
+  let titulo;
+
+  switch (interaction.customId) {
+    case "soporte_general":
+      categoriaId = "1422898157829881926";
+      nombreTicket = `soporte-${interaction.user.username}`;
+      titulo = "🟢 Ticket de Soporte General";
+      break;
+
+    case "reportes":
+      categoriaId = "1423746566610620568";
+      nombreTicket = `reporte-${interaction.user.username}`;
+      titulo = "🐞 Ticket de Reportes";
+      break;
+
+    case "ck":
+      categoriaId = "1423746747741765632";
+      nombreTicket = `ck-${interaction.user.username}`;
+      titulo = "💀 Ticket de CK";
+      break;
+
+    case "donaciones":
+      categoriaId = "1423747380637073489";
+      nombreTicket = `donacion-${interaction.user.username}`;
+      titulo = "💸 Ticket de Donaciones";
+      break;
+
+    case "facciones":
+      categoriaId = "1423747506382311485";
+      nombreTicket = `faccion-${interaction.user.username}`;
+      titulo = "🏢 Ticket de Facciones";
+      break;
+
+    case "postulacion":
+      categoriaId = "1423747604495466536";
+      nombreTicket = `postulacion-${interaction.user.username}`;
+      titulo = "📋 Ticket de Postulación";
+      break;
+
+    default:
+      return;
+  }
+
+  // Crear canal de ticket
+  const channel = await guild.channels.create({
+    name: nombreTicket,
+    type: 0, // Canal de texto
+    parent: categoriaId,
+    permissionOverwrites: [
+      {
+        id: guild.id,
+        deny: [PermissionsBitField.Flags.ViewChannel],
+      },
+      {
+        id: interaction.user.id,
+        allow: [
+          PermissionsBitField.Flags.ViewChannel,
+          PermissionsBitField.Flags.SendMessages,
+        ],
+      },
+    ],
+  });
+
+  await interaction.reply({
+    content: `✅ Ticket creado: ${channel}`,
+    flags: 64,
+  });
+
+  // Embed dentro del ticket
+  const embedTicket = new EmbedBuilder()
+    .setTitle(titulo)
+    .setDescription(
+      `👋 Hola ${interaction.user}, gracias por abrir un ticket de **${titulo}**.\n\nUn miembro del staff te atenderá pronto. 🚀`
+    )
+    .setColor("Blue")
+    .setTimestamp();
+
+  const rowCerrar = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("cerrar_ticket")
+      .setLabel("Cerrar Ticket")
+      .setStyle(ButtonStyle.Danger),
+  );
+
+  await channel.send({ embeds: [embedTicket], components: [rowCerrar] });
+});
+
+
+// ---- MANEJADOR PARA CERRAR TICKET ----
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isButton()) return;
+
+  if (interaction.customId === "cerrar_ticket") {
+    await interaction.reply("⏳ Cerrando ticket en 5 segundos...");
+    setTimeout(() => {
+      interaction.channel.delete().catch(() => {});
+    }, 5000);
+  }
+});
+
 
     // Mencionar al usuario
     const embed = new EmbedBuilder()
