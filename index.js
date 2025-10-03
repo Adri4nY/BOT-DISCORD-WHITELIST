@@ -48,7 +48,7 @@ client.on("ready", () => {
 
   // Establecer estado
   client.user.setPresence({
-    activities: [{ name: "UNITY CITY", type: 0 }], // 0 = Playing
+    activities: [{ name: "UNITY CITY 🎮", type: 0 }], // 0 = Playing
     status: "online" // opciones: "online", "idle", "dnd", "invisible"
   });
 });
