@@ -210,9 +210,13 @@ client.on("interactionCreate", async (interaction) => {
     const resultadoEmbed = new EmbedBuilder()
       .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
       .setDescription(aprobado
-        ? `🎉 ¡Felicidades ${interaction.user}, has aprobado la whitelist!\n**Puntaje:** ${puntaje}/${preguntas.length}`
-        : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
+        ? `🎉 ¡Felicidades ${interaction.user.username}, has aprobado la whitelist!\n**Puntaje:** ${puntaje}/${preguntas.length}`
+        : `😢 Lo sentimos ${interaction.user.username}, no has aprobado la whitelist.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
       .setColor(aprobado ? "Green" : "Red");
+
+    // Enviar al canal de logs sin mención
+    const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+    if (logChannel) logChannel.send({ content: `✅ Resultado de la whitelist:`, embeds: [resultadoEmbed] });
 
     await channel.send({ embeds: [resultadoEmbed] });
 
@@ -227,9 +231,6 @@ client.on("interactionCreate", async (interaction) => {
         await channel.send("⚠️ Error al asignar rol, avisa a un staff.");
       }
     }
-
-    const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
-    if (logChannel) logChannel.send({ content: `${interaction.user}`, embeds: [resultadoEmbed] });
 
     setTimeout(() => channel.delete().catch(() => {}), 30000);
   }
@@ -254,3 +255,4 @@ client.on("guildMemberAdd", async (member) => {
 
 // ------------------- Login ------------------- //
 client.login(process.env.TOKEN);
+
