@@ -29,9 +29,9 @@ const ROLES = {
   sinWhitelist: "1320037024358600734",
 };
 const MOD_ROLES = {
-  moderador: "1226606346967973900",
-  soporte: "1226606408682700862",
-  admin: "1203773772868620308"
+  moderador: "ID_ROL_MODERADOR",
+  soporte: "ID_ROL_SOPORTE",
+  admin: "ID_ROL_ADMIN"
 };
 const cooldowns = {};
 
@@ -54,35 +54,34 @@ client.on("ready", () => {
   });
 });
 
-// ------------------- Función hacer pregunta ------------------- //
+// ------------------- Función hacer pregunta (Whitelist con botones) ------------------- //
 async function hacerPregunta(channel, usuario, pregunta, index, total) {
   const row = new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId("pregunta_select")
-      .setPlaceholder("Selecciona una opción")
-      .addOptions(
-        pregunta.opciones.map((texto, i) => ({
-          label: texto,
-          value: String.fromCharCode(97 + i),
-        }))
-      )
+    new ButtonBuilder().setCustomId("a").setLabel("A").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("b").setLabel("B").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("c").setLabel("C").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("d").setLabel("D").setStyle(ButtonStyle.Secondary)
   );
+
+  const opciones = pregunta.opciones
+    .map((texto, i) => `${String.fromCharCode(65 + i)}) ${texto}`)
+    .join("\n");
 
   const embed = new EmbedBuilder()
     .setTitle(`❓ Pregunta ${index + 1} de ${total}`)
-    .setDescription(`**${pregunta.pregunta}**`)
+    .setDescription(`**${pregunta.pregunta}**\n\n${opciones}`)
     .setColor("Purple");
 
   const msg = await channel.send({ embeds: [embed], components: [row] });
 
   return new Promise((resolve) => {
     const filter = (i) => i.user.id === usuario.id;
-    channel
+    msg
       .awaitMessageComponent({ filter, time: 60000 })
       .then(async (interaction) => {
-        await interaction.deferUpdate();
+        await interaction.deferUpdate().catch(() => {});
         await msg.delete().catch(() => {});
-        resolve(interaction.values[0]);
+        resolve(interaction.customId);
       })
       .catch(() => {
         msg.delete().catch(() => {});
@@ -92,11 +91,11 @@ async function hacerPregunta(channel, usuario, pregunta, index, total) {
   });
 }
 
-// ------------------- Comandos de Interacción ------------------- //
+// ------------------- Interacciones ------------------- //
 client.on("interactionCreate", async (interaction) => {
   const guild = interaction.guild;
 
-  // ---- Setup Soporte con Select Menu ----
+  // ---- Setup Soporte (Select Menu) ----
   if (interaction.isCommand() && interaction.commandName === "setup-soporte") {
     const embed = new EmbedBuilder()
       .setTitle("🎫 Sistema de Tickets - UNITY CITY")
@@ -120,7 +119,7 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.reply({ embeds: [embed], components: [row] });
   }
 
-  // ---- Select Menu de Tickets ----
+  // ---- Ticket Select ----
   if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
     const ticketMap = {
       soporte_general: { cat: SOPORTE_CATEGORY_ID, label: "🟢 Ticket de Soporte General" },
@@ -153,7 +152,6 @@ client.on("interactionCreate", async (interaction) => {
       new ButtonBuilder().setCustomId("cerrar_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger)
     );
 
-    // Enviar mensaje con menciones a roles de staff
     await channel.send({
       content: `<@&${MOD_ROLES.moderador}> <@&${MOD_ROLES.soporte}> <@&${MOD_ROLES.admin}>`,
       embeds: [embedTicket],
@@ -161,11 +159,10 @@ client.on("interactionCreate", async (interaction) => {
       allowedMentions: { roles: [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin] }
     });
 
-    // Confirmación privada al usuario
     await interaction.reply({ content: `✅ Ticket creado: ${channel}`, ephemeral: true });
   }
 
-  // ---- Botón cerrar ticket ----
+  // ---- Cerrar ticket ----
   if (interaction.isButton() && interaction.customId === "cerrar_ticket") {
     await interaction.reply({ content: "⏳ Cerrando ticket en 5 segundos...", ephemeral: true });
     setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
@@ -214,7 +211,6 @@ client.on("interactionCreate", async (interaction) => {
         : `😢 Lo sentimos ${interaction.user.username}, no has aprobado la whitelist.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
       .setColor(aprobado ? "Green" : "Red");
 
-    // Enviar al canal de logs sin mención
     const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
     if (logChannel) logChannel.send({ content: `✅ Resultado de la whitelist:`, embeds: [resultadoEmbed] });
 
@@ -255,4 +251,3 @@ client.on("guildMemberAdd", async (member) => {
 
 // ------------------- Login ------------------- //
 client.login(process.env.TOKEN);
-
