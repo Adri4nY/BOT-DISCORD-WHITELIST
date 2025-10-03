@@ -216,4 +216,104 @@ client.on("interactionCreate", async (interaction) => {
       const aprobado = puntaje >= 9;
       const resultadoEmbed = new EmbedBuilder()
         .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
-        .setDescription(aprobado ? `🎉 ¡
+        .setDescription(aprobado ? `🎉 ¡Felicidades ${interaction.user}, has aprobado!\n**Puntaje:** ${puntaje}/${preguntas.length}` : `😢 Lo sentimos ${interaction.user}, no aprobaste.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
+        .setColor(aprobado ? "Green" : "Red");
+
+      await channel.send({ embeds: [resultadoEmbed] });
+
+      if (aprobado) {
+        try {
+          const member = await guild.members.fetch(interaction.user.id);
+          await member.roles.add(ROLES.whitelist);
+          await member.roles.remove(ROLES.sinWhitelist);
+          await channel.send("🎉 ¡Has recibido el rol de **Whitelist**!");
+        } catch (err) {
+          console.error("❌ Error al asignar rol:", err);
+          await channel.send("⚠️ Error al asignar rol, avisa a un staff.");
+        }
+      }
+
+      const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+      if (logChannel) logChannel.send({ content: `${interaction.user}`, embeds: [resultadoEmbed] });
+
+      setTimeout(() => channel.delete().catch(() => {}), 30000);
+      return;
+    }
+
+    // ---- Tickets de soporte ----
+    if (ticketMap[interaction.customId]) {
+      const { cat, label } = ticketMap[interaction.customId];
+      const channel = await guild.channels.create({
+        name: `${interaction.customId}-${interaction.user.username}`,
+        type: 0,
+        parent: cat,
+        permissionOverwrites: [
+          { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+          { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
+        ]
+      });
+
+      await interaction.reply({ content: `✅ Ticket creado: ${channel}`, ephemeral: true });
+
+      const embedTicket = new EmbedBuilder()
+        .setTitle(label)
+        .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**. Un miembro del staff te atenderá pronto.`)
+        .setColor("Blue")
+        .setTimestamp();
+
+      const rowCerrar = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId("cerrar_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger)
+      );
+
+      await channel.send({ embeds: [embedTicket], components: [rowCerrar] });
+      return;
+    }
+
+    // ---- Cerrar ticket ----
+    if (interaction.customId === "cerrar_ticket") {
+      await interaction.reply("⏳ Cerrando ticket en 5 segundos...");
+      setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
+      return;
+    }
+  }
+});
+
+// ------------------- Bienvenidas ------------------- //
+client.on("guildMemberAdd", async (member) => {
+  const canalBienvenida = "1422298345241841824";
+  const channel = member.guild.channels.cache.get(canalBienvenida);
+  if (!channel) return console.error("❌ No encontré el canal de bienvenida.");
+
+  const embed = new EmbedBuilder()
+    .setTitle("🎉 ¡Nuevo miembro en **UNITY CITY**!")
+    .setDescription(`Bienvenido/a ${member} a **${member.guild.name}** 🚀\n👉 No olvides leer las normas y realizar la whitelist.`)
+    .setColor("Purple")
+    .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+    .setFooter({ text: "UNITY CITY RP", iconURL: member.guild.iconURL() })
+    .setTimestamp();
+
+  channel.send({ embeds: [embed] });
+});
+
+// ------------------- Login ------------------- //
+client.login(process.env.TOKEN);
+
+// ------------------- Registro de slash commands ------------------- //
+const commands = [
+  { name: "setup-soporte", description: "Crea el panel de tickets de soporte" },
+  { name: "setup-whitelist", description: "Crea el panel para iniciar la whitelist" }
+];
+
+const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+(async () => {
+  try {
+    console.log("🚀 Registrando comandos slash...");
+    await rest.put(
+      Routes.applicationGuildCommands("1422713122657140866", "821091789325729803"),
+      { body: commands }
+    );
+    console.log("✅ Comandos slash registrados correctamente.");
+  } catch (err) {
+    console.error(err);
+  }
+})();
