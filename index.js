@@ -87,6 +87,31 @@ client.on("messageCreate", async (message) => {
   await message.channel.send({ embeds: [embed], components: [row] });
 });
 
+client.on("messageCreate", async (message) => {
+  if (message.author.bot) return;
+
+  // Comando para resetear cooldown
+  if (message.content.startsWith("!resetcooldown")) {
+    // Solo admins pueden usarlo
+    if (!message.member.permissions.has("Administrator")) {
+      return message.reply("❌ No tienes permisos para usar este comando.");
+    }
+
+    // Obtener mención o ID del usuario
+    const args = message.content.split(" ");
+    const userId = args[1]?.replace(/[<@!>]/g, ""); // elimina caracteres <@!>
+
+    if (!userId || !cooldowns[userId]) {
+      return message.reply("❌ Usuario no encontrado o no tiene cooldown.");
+    }
+
+    // Eliminar cooldown
+    delete cooldowns[userId];
+    message.channel.send(`✅ Se ha reseteado el cooldown de <@${userId}>.`);
+  }
+});
+
+
 // ------------------- Función hacer pregunta ------------------- //
 async function hacerPregunta(channel, usuario, pregunta, index, total) {
   const row = new ActionRowBuilder().addComponents(
