@@ -250,7 +250,7 @@ client.on("interactionCreate", async (interaction) => {
     const embed = new EmbedBuilder()
       .setTitle("Soporte")
       .setDescription(`**@${interaction.user.username}**, explica tu consulta. El staff te atenderá pronto.`)
-      .setImage('https://i.imgur.com/gy3kCX4.png')
+      .setImage('https://imgur.com/a/ULs0Zr1')
       .setFooter({ text: 'UNITY CITY RP' })
       .setColor("Purple")
       .setTimestamp();
@@ -258,6 +258,33 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.reply({ content: `✅ Ticket de soporte creado: ${channel}`, ephemeral: true });
     await channel.send({ content: `<@${interaction.user.id}>`, embeds: [embed] });
   }
+});
+
+// BIENVENIDAS
+
+client.on("guildMemberAdd", async (member) => {
+  // ID del canal de bienvenida
+  const canalBienvenida = "1422298345241841824"; // <- pon aquí la ID de tu canal
+
+  // Buscar el canal
+  const channel = member.guild.channels.cache.get(canalBienvenida);
+  if (!channel) return console.error("❌ No encontré el canal de bienvenida.");
+
+  // Crear el embed
+  const embed = new EmbedBuilder()
+    .setTitle("🎉 ¡Nuevo miembro en **UNITY CITY**!")
+    .setDescription(
+      `Bienvenido/a ${member} a **${member.guild.name}** 🚀\n\n` +
+      "👉 No olvides leer las normas y realizar la whitelist para tener acceso al servidor.\n" +
+      "¡Disfruta tu estancia con nosotros!"
+    )
+    .setColor("Purple")
+    .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+    .setFooter({ text: "UNITY CITY RP", iconURL: member.guild.iconURL() })
+    .setTimestamp();
+
+  // Enviar el embed
+  channel.send({ embeds: [embed] });
 });
 
 // ------------------- LOGIN ------------------- //
