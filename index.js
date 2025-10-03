@@ -7,10 +7,11 @@ const {
   ButtonBuilder,
   ButtonStyle,
   PermissionsBitField,
+  REST,
+  Routes
 } = require("discord.js");
 const fs = require("fs");
 const express = require("express");
-const { REST, Routes } = require("discord.js");
 
 // ------------------- Servidor web ------------------- //
 const app = express();
@@ -22,7 +23,7 @@ app.listen(PORT, () => console.log(`🌐 Servidor web activo en puerto ${PORT}`)
 const preguntas = JSON.parse(fs.readFileSync("preguntas.json", "utf8"));
 const LOG_CHANNEL_ID = "1422893357042110546";
 const WHITELIST_CATEGORY_ID = "1422897937427464203";
-const SOPORTE_CATEGORY_ID = "1422898157829881926";
+const SOPORTE_CATEGORY_ID = "1422898157829881926"; // Categoría soporte
 const COOLDOWN_HORAS = 6;
 const ROLES = {
   whitelist: "822529294365360139",
@@ -86,82 +87,85 @@ async function hacerPregunta(channel, usuario, pregunta, index, total) {
   });
 }
 
-// ------------------- Manejo de mensajes (whitelist y reset cooldown) ------------------- //
-client.on("messageCreate", async (message) => {
-  if (message.author.bot) return;
-
-  // ---- Setup Whitelist ----
-  if (message.content.startsWith("!setup-whitelist")) {
-    const embed = new EmbedBuilder()
-      .setTitle("📋 Sistema de Whitelist")
-      .setDescription("Pulsa el botón para iniciar tu whitelist. Tendrás 1 minuto por pregunta.")
-      .setColor("Purple");
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("whitelist")
-        .setLabel("Iniciar Whitelist")
-        .setStyle(ButtonStyle.Primary)
-    );
-
-    await message.channel.send({ embeds: [embed], components: [row] });
-  }
-
-  // ---- Resetear cooldown ----
-  if (message.content.startsWith("!resetcooldown")) {
-    if (!message.member.permissions.has("Administrator")) {
-      return message.reply("❌ No tienes permisos para usar este comando.");
-    }
-
-    const args = message.content.split(" ");
-    const userId = args[1]?.replace(/[<@!>]/g, "");
-    if (!userId || !cooldowns[userId]) {
-      return message.reply("❌ Usuario no encontrado o no tiene cooldown.");
-    }
-
-    delete cooldowns[userId];
-    message.channel.send(`✅ Se ha reseteado el cooldown de <@${userId}>.`);
-  }
-});
-
-// ------------------- Manejo de interacciones (botones y slash command) ------------------- //
+// ------------------- Manejo de interacciones ------------------- //
 client.on("interactionCreate", async (interaction) => {
   const guild = interaction.guild;
 
   // ---- Slash Command setup-soporte ----
-  if (interaction.isCommand()) {
-    if (interaction.commandName === "setup-soporte") {
-      try {
-        // Verificar permisos del bot
-        const botMember = await guild.members.fetch(client.user.id);
-        const botPerms = interaction.channel.permissionsFor(botMember);
-        if (!botPerms.has("SendMessages") || !botPerms.has("EmbedLinks") || !botPerms.has("UseExternalEmojis")) {
-          return interaction.reply({ content: "❌ No tengo permisos suficientes en este canal.", ephemeral: true });
-        }
+  if (interaction.isCommand() && interaction.commandName === "setup-soporte") {
+    try {
+      if (!interaction.channel) return interaction.reply({ content: "❌ No se pudo encontrar el canal.", ephemeral: true });
 
-        // Embed del panel de soporte
-        const embed = new EmbedBuilder()
-          .setTitle("🎫 Sistema de Tickets - UNITY CITY")
-          .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
-          .setColor("Purple");
+      const botMember = await guild.members.fetch(client.user.id);
+      const botPerms = interaction.channel.permissionsFor(botMember);
+      const missingPerms = [];
+      if (!botPerms.has("SendMessages")) missingPerms.push("Enviar mensajes");
+      if (!botPerms.has("EmbedLinks")) missingPerms.push("Enviar embeds");
+      if (!botPerms.has("UseExternalEmojis")) missingPerms.push("Usar emojis externos");
 
-        // Botones
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId("soporte_general").setLabel("Soporte").setStyle(ButtonStyle.Primary),
-          new ButtonBuilder().setCustomId("reportes").setLabel("Reportes").setStyle(ButtonStyle.Danger),
-          new ButtonBuilder().setCustomId("ck").setLabel("CK").setStyle(ButtonStyle.Secondary),
-          new ButtonBuilder().setCustomId("donaciones").setLabel("Donaciones").setStyle(ButtonStyle.Success),
-          new ButtonBuilder().setCustomId("facciones").setLabel("Facciones").setStyle(ButtonStyle.Primary),
-          new ButtonBuilder().setCustomId("postulacion").setLabel("Postulación").setStyle(ButtonStyle.Secondary)
-        );
+      if (missingPerms.length > 0)
+        return interaction.reply({ content: `❌ No tengo permisos suficientes: ${missingPerms.join(", ")}`, ephemeral: true });
 
-        await interaction.reply({ embeds: [embed], components: [row] });
-      } catch (err) {
-        console.error("Error al ejecutar setup-soporte:", err);
-        interaction.reply({ content: "❌ Ocurrió un error al crear el panel de tickets.", ephemeral: true });
-      }
-      return;
+      const category = guild.channels.cache.get(SOPORTE_CATEGORY_ID);
+      if (!category || category.type !== 4)
+        return interaction.reply({ content: "❌ La categoría de soporte no existe o no es válida. Revisa SOPORTE_CATEGORY_ID.", ephemeral: true });
+
+      const embed = new EmbedBuilder()
+        .setTitle("🎫 Sistema de Tickets - UNITY CITY")
+        .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
+        .setColor("Purple");
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId("soporte_general").setLabel("Soporte").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId("reportes").setLabel("Reportes").setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId("ck").setLabel("CK").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("donaciones").setLabel("Donaciones").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId("facciones").setLabel("Facciones").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId("postulacion").setLabel("Postulación").setStyle(ButtonStyle.Secondary)
+      );
+
+      await interaction.reply({ embeds: [embed], components: [row] });
+    } catch (err) {
+      console.error("Error al ejecutar setup-soporte:", err);
+      interaction.reply({ content: `❌ Error: ${err.message}`, ephemeral: true });
     }
+    return;
+  }
+
+  // ---- Slash Command setup-whitelist ----
+  if (interaction.isCommand() && interaction.commandName === "setup-whitelist") {
+    try {
+      if (!interaction.channel) return interaction.reply({ content: "❌ No se pudo encontrar el canal.", ephemeral: true });
+
+      const botMember = await guild.members.fetch(client.user.id);
+      const botPerms = interaction.channel.permissionsFor(botMember);
+      const missingPerms = [];
+      if (!botPerms.has("SendMessages")) missingPerms.push("Enviar mensajes");
+      if (!botPerms.has("EmbedLinks")) missingPerms.push("Enviar embeds");
+      if (!botPerms.has("UseExternalEmojis")) missingPerms.push("Usar emojis externos");
+
+      if (missingPerms.length > 0)
+        return interaction.reply({ content: `❌ No tengo permisos suficientes: ${missingPerms.join(", ")}`, ephemeral: true });
+
+      const category = guild.channels.cache.get(WHITELIST_CATEGORY_ID);
+      if (!category || category.type !== 4)
+        return interaction.reply({ content: "❌ La categoría de whitelist no existe o no es válida. Revisa WHITELIST_CATEGORY_ID.", ephemeral: true });
+
+      const embed = new EmbedBuilder()
+        .setTitle("📋 Sistema de Whitelist")
+        .setDescription("Pulsa el botón para iniciar tu whitelist. Tendrás 1 minuto por pregunta.")
+        .setColor("Purple");
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId("whitelist").setLabel("Iniciar Whitelist").setStyle(ButtonStyle.Primary)
+      );
+
+      await interaction.reply({ embeds: [embed], components: [row] });
+    } catch (err) {
+      console.error("Error al ejecutar setup-whitelist:", err);
+      interaction.reply({ content: `❌ Error: ${err.message}`, ephemeral: true });
+    }
+    return;
   }
 
   // ---- Manejo de botones ----
@@ -175,20 +179,16 @@ client.on("interactionCreate", async (interaction) => {
   };
 
   if (interaction.isButton()) {
+    // ---- Whitelist ----
     if (interaction.customId === "whitelist") {
       const userId = interaction.user.id;
       const now = Date.now();
-
       if (cooldowns[userId] && now - cooldowns[userId] < COOLDOWN_HORAS * 60 * 60 * 1000) {
         const remaining = COOLDOWN_HORAS * 60 * 60 * 1000 - (now - cooldowns[userId]);
         const hours = Math.floor(remaining / (1000 * 60 * 60));
         const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-        return interaction.reply({
-          content: `⚠️ Ya hiciste un intento de whitelist. Debes esperar ${hours}h ${minutes}m antes de intentarlo de nuevo.`,
-          ephemeral: true,
-        });
+        return interaction.reply({ content: `⚠️ Ya hiciste un intento. Espera ${hours}h ${minutes}m.`, ephemeral: true });
       }
-
       cooldowns[userId] = now;
 
       const channel = await guild.channels.create({
@@ -197,7 +197,7 @@ client.on("interactionCreate", async (interaction) => {
         parent: WHITELIST_CATEGORY_ID,
         permissionOverwrites: [
           { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+          { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
         ],
       });
 
@@ -212,9 +212,7 @@ client.on("interactionCreate", async (interaction) => {
       const aprobado = puntaje >= 9;
       const resultadoEmbed = new EmbedBuilder()
         .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
-        .setDescription(aprobado
-          ? `🎉 ¡Felicidades ${interaction.user}, has aprobado la whitelist!\n\n**Puntaje:** ${puntaje}/${preguntas.length}`
-          : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist.\n\n**Puntaje:** ${puntaje}/${preguntas.length}`)
+        .setDescription(aprobado ? `🎉 ¡Felicidades ${interaction.user}, has aprobado!\n**Puntaje:** ${puntaje}/${preguntas.length}` : `😢 Lo sentimos ${interaction.user}, no aprobaste.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
         .setColor(aprobado ? "Green" : "Red");
 
       await channel.send({ embeds: [resultadoEmbed] });
@@ -224,10 +222,10 @@ client.on("interactionCreate", async (interaction) => {
           const member = await guild.members.fetch(interaction.user.id);
           await member.roles.add(ROLES.whitelist);
           await member.roles.remove(ROLES.sinWhitelist);
-          await channel.send("🎉 ¡Felicidades! Has recibido el rol de **Whitelist**.");
+          await channel.send("🎉 ¡Has recibido el rol de **Whitelist**!");
         } catch (err) {
           console.error("❌ Error al asignar rol:", err);
-          await channel.send("⚠️ Error al asignar o quitar el rol, avisa a un staff.");
+          await channel.send("⚠️ Error al asignar rol, avisa a un staff.");
         }
       }
 
@@ -238,6 +236,7 @@ client.on("interactionCreate", async (interaction) => {
       return;
     }
 
+    // ---- Tickets de soporte ----
     if (ticketMap[interaction.customId]) {
       const { cat, label } = ticketMap[interaction.customId];
       const channel = await guild.channels.create({
@@ -246,7 +245,7 @@ client.on("interactionCreate", async (interaction) => {
         parent: cat,
         permissionOverwrites: [
           { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+          { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
         ]
       });
 
@@ -254,7 +253,7 @@ client.on("interactionCreate", async (interaction) => {
 
       const embedTicket = new EmbedBuilder()
         .setTitle(label)
-        .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**.\n\nUn miembro del staff te atenderá pronto. 🚀`)
+        .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**. Un miembro del staff te atenderá pronto.`)
         .setColor("Blue")
         .setTimestamp();
 
@@ -266,6 +265,7 @@ client.on("interactionCreate", async (interaction) => {
       return;
     }
 
+    // ---- Cerrar ticket ----
     if (interaction.customId === "cerrar_ticket") {
       await interaction.reply("⏳ Cerrando ticket en 5 segundos...");
       setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
@@ -282,11 +282,7 @@ client.on("guildMemberAdd", async (member) => {
 
   const embed = new EmbedBuilder()
     .setTitle("🎉 ¡Nuevo miembro en **UNITY CITY**!")
-    .setDescription(
-      `Bienvenido/a ${member} a **${member.guild.name}** 🚀\n\n` +
-      "👉 No olvides leer las normas y realizar la whitelist para tener acceso al servidor.\n" +
-      "¡Disfruta tu estancia con nosotros!"
-    )
+    .setDescription(`Bienvenido/a ${member} a **${member.guild.name}** 🚀\n👉 No olvides leer las normas y realizar la whitelist.`)
     .setColor("Purple")
     .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
     .setFooter({ text: "UNITY CITY RP", iconURL: member.guild.iconURL() })
@@ -298,16 +294,13 @@ client.on("guildMemberAdd", async (member) => {
 // ------------------- Login ------------------- //
 client.login(process.env.TOKEN);
 
-// ------------------- Registro del slash command ------------------- //
+// ------------------- Registro de slash commands ------------------- //
 const commands = [
-  {
-    name: "setup-soporte",
-    description: "Crea el panel de tickets de soporte"
-  }
+  { name: "setup-soporte", description: "Crea el panel de tickets de soporte" },
+  { name: "setup-whitelist", description: "Crea el panel para iniciar la whitelist" }
 ];
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
-
 (async () => {
   try {
     console.log("🚀 Registrando comandos slash...");
@@ -320,3 +313,4 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
     console.error(err);
   }
 })();
+
