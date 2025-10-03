@@ -43,9 +43,16 @@ const ROLES = {
 const cooldowns = {}; // { userId: timestamp }
 
 // ------------------- READY ------------------- //
-client.once("ready", () => {
+client.on("ready", () => {
   console.log(`✅ Bot iniciado como: ${client.user.tag}`);
+
+  // Establecer estado
+  client.user.setPresence({
+    activities: [{ name: "UNITY CITY", type: 0 }], // 0 = Playing
+    status: "online" // opciones: "online", "idle", "dnd", "invisible"
+  });
 });
+
 
 // ------------------- Setup Whitelist ------------------- //
 client.on("messageCreate", async (message) => {
