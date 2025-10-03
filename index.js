@@ -257,3 +257,4 @@ client.on("guildMemberAdd", async (member) => {
 
 // ------------------- Login ------------------- //
 client.login(process.env.TOKEN);
+
