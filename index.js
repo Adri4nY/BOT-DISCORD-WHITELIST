@@ -28,6 +28,11 @@ const ROLES = {
   whitelist: "822529294365360139",
   sinWhitelist: "1320037024358600734",
 };
+const MOD_ROLES = {
+  moderador: "1226606346967973900",
+  soporte: "1226606408682700862",
+  admin: "1203773772868620308"
+};
 const cooldowns = {};
 
 // ------------------- Cliente Discord ------------------- //
@@ -95,7 +100,7 @@ client.on("interactionCreate", async (interaction) => {
   if (interaction.isCommand() && interaction.commandName === "setup-soporte") {
     const embed = new EmbedBuilder()
       .setTitle("🎫 Sistema de Tickets - UNITY CITY")
-      .setDescription("Bienvenidos al sistema de tickets de UNITY CITY aquí encontrarás todas las opciones de tickets que podrás abrir, dependiendo del problema o duda que tengas podrás elegir el que se adecue a estas. Selecciona el tipo de ticket que quieras abrir 👇")
+      .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
       .setColor("Purple");
 
     const row = new ActionRowBuilder().addComponents(
@@ -138,9 +143,6 @@ client.on("interactionCreate", async (interaction) => {
       ]
     });
 
-    // Confirmación privada al usuario
-    await interaction.reply({ content: `✅ Ticket creado: ${channel}`, ephemeral: true });
-
     const embedTicket = new EmbedBuilder()
       .setTitle(label)
       .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**. Un miembro del staff te atenderá pronto.`)
@@ -151,7 +153,16 @@ client.on("interactionCreate", async (interaction) => {
       new ButtonBuilder().setCustomId("cerrar_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger)
     );
 
-    await channel.send({ embeds: [embedTicket], components: [rowCerrar] });
+    // Enviar mensaje con menciones a roles de staff
+    await channel.send({
+      content: `<@&${MOD_ROLES.moderador}> <@&${MOD_ROLES.soporte}> <@&${MOD_ROLES.admin}>`,
+      embeds: [embedTicket],
+      components: [rowCerrar],
+      allowedMentions: { roles: [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin] }
+    });
+
+    // Confirmación privada al usuario
+    await interaction.reply({ content: `✅ Ticket creado: ${channel}`, ephemeral: true });
   }
 
   // ---- Botón cerrar ticket ----
