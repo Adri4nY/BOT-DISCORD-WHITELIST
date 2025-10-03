@@ -96,9 +96,12 @@ async function hacerPregunta(channel, usuario, pregunta, index, total) {
     new ButtonBuilder().setCustomId("d").setLabel("d").setStyle(ButtonStyle.Secondary),
   );
 
-  const opciones = Object.entries(pregunta.opciones)
-    .map(([letra, texto]) => `${letra}) ${texto}`)
-    .join("\n");
+ const opciones = pregunta.opciones
+  .map((texto, index) => {
+    const letra = String.fromCharCode(97 + index); // 'a', 'b', 'c', 'd'
+    return `${letra}) ${texto}`;
+  })
+  .join("\n");
 
   const embed = new EmbedBuilder()
     .setTitle(`❓ Pregunta ${index + 1} de ${total}`)
