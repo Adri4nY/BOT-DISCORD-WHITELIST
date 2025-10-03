@@ -205,11 +205,11 @@ client.on("interactionCreate", async (interaction) => {
 
     const aprobado = puntaje >= 9;
     const resultadoEmbed = new EmbedBuilder()
-      .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
-      .setDescription(aprobado
-        ? `🎉 ¡Felicidades ${interaction.user.username}, has aprobado la whitelist!\n**Puntaje:** ${puntaje}/${preguntas.length}`
-        : `😢 Lo sentimos ${interaction.user.username}, no has aprobado la whitelist.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
-      .setColor(aprobado ? "Green" : "Red");
+  .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
+  .setDescription(aprobado
+    ? `🎉 ¡Felicidades ${interaction.user}, has aprobado la whitelist!\n**Puntaje:** ${puntaje}/${preguntas.length}`
+    : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
+  .setColor(aprobado ? "Green" : "Red");
 
     const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
     if (logChannel) logChannel.send({ content: `✅ Resultado de la whitelist:`, embeds: [resultadoEmbed] });
