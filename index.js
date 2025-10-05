@@ -265,5 +265,5 @@ client.on("guildMemberAdd", async (member) => {
 });
 
 // ------------------- Login ------------------- //
-require('dotenv').config();
+console.log("Token cargado:", process.env.TOKEN ? "Sí" : "No");
 client.login(process.env.TOKEN);
