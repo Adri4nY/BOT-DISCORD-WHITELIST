@@ -135,8 +135,19 @@ client.on("interactionCreate", async (interaction) => {
     if (interaction.commandName === "negocios") {
       const embed = new EmbedBuilder()
         .setTitle("🏢 Solicitud de Negocio - UNITY CITY")
-        .setDescription(`...`) // tu descripción completa aquí
-        .setColor("Purple");
+        .setDescription(`
+Por favor copia este formato y complétalo para enviar tu solicitud de negocio:
+
+📛 **Nombre del Negocio:**
+👤 **Motivo por el que quieres postular a ese negocio:**
+💼 **Jerarquia de rangos:**
+💰 **Normativa del local:**
+📍 **Ubicación (si aplica):**
+🧾 **Tipos de eventos:**
+        `)
+        .setColor("Purple")
+        .setFooter({ text: "UNITY CITY RP | Departamento de Economía" })
+        .setTimestamp();
       await interaction.reply({ embeds: [embed] });
     }
 
@@ -144,8 +155,25 @@ client.on("interactionCreate", async (interaction) => {
     if (interaction.commandName === "ilegales") {
       const embed = new EmbedBuilder()
         .setTitle("💀 Solicitud de Banda Ilegal - UNITY CITY")
-        .setDescription(`...`) // tu descripción completa aquí
-        .setColor("Purple");
+        .setDescription(`
+Por favor copia este formato y complétalo para enviar tu solicitud de ilegales:
+
+ORIGEN DE LA BANDA:
+HISTORIA Y EXPANSION DE LA BANDA:
+ESTRUCTURA Y SIMBOLOS QUE LES REPRESENTEN:
+PERSONALIDAD Y REPUTACION:
+QUE VAIS A APORTAR AL SERVIDOR DE NUEVO, COMO PRETENDEIS FOMENTAR EL ROL?
+DISPONIBILIDAD HORARIA DE LOS MIEMBROS DE LA BANDA, E INTENCION DE PROGRESION DE LA MISMA:
+
+FOTO DE LA UBICACION DEL BARRIO:
+
+INTEGRANTES:
+
+BOCETO O FOTO DE EL GRAFITI:
+        `)
+        .setColor("Purple")
+        .setFooter({ text: "UNITY CITY RP | Departamento de Bandas" })
+        .setTimestamp();
       await interaction.reply({ embeds: [embed] });
     }
 
@@ -153,8 +181,18 @@ client.on("interactionCreate", async (interaction) => {
     if (interaction.commandName === "streamer") {
       const embed = new EmbedBuilder()
         .setTitle("🎥 Solicitud de Streamer - UNITY CITY")
-        .setDescription(`...`) // tu descripción completa aquí
-        .setColor("Purple");
+        .setDescription(`
+Por favor copia este formato y complétalo para enviar tu solicitud de streamer:
+
+NOMBRE OOC:
+CUANTO TIEMPO LLEVAS EN EL SERVIDOR:
+HORAS EN FIVEM:
+URL STEAM:
+LINK DE TUS REDES SOCIALES EN LAS QUE TRANSMITIRIAS:
+        `)
+        .setColor("Purple")
+        .setFooter({ text: "UNITY CITY RP | POSTULACION STREAMER" })
+        .setTimestamp();
       await interaction.reply({ embeds: [embed] });
     }
 
@@ -162,8 +200,20 @@ client.on("interactionCreate", async (interaction) => {
     if (interaction.commandName === "pstaff") {
       const embed = new EmbedBuilder()
         .setTitle("POSTULACION STAFF - UNITY CITY")
-        .setDescription(`...`) // tu descripción completa aquí
-        .setColor("Purple");
+        .setDescription(`
+Por favor copia este formato y complétalo para enviar tu postulacion a STAFF:
+
+NOMBRE OOC:
+EDAD OOC:
+CUANTO TIEMPO LLEVAS EN EL SERVIDOR:
+TIENES ALGUNA SANCION ADMINISTRATIVA:
+CUALIDADES Y PUNTOS FUERTES:
+DISPONIBILIDAD HORARIA:
+URL DE STEAM:
+        `)
+        .setColor("Purple")
+        .setFooter({ text: "UNITY CITY RP | POSTULACION STAFF" })
+        .setTimestamp();
       await interaction.reply({ embeds: [embed] });
     }
 
@@ -192,7 +242,7 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 
-  // Aquí sigue el resto de tu código de tickets, botones y whitelist...
+  // Aquí sigue tu código de tickets, botones y whitelist...
 });
 
 // ------------------- Bienvenidas ------------------- //
