@@ -146,7 +146,7 @@ Por favor copia este formato y complétalo para enviar tu solicitud de negocio:
 🧾 **Tipos de eventos:**
         `)
         .setColor("Purple")
-        .setFooter({ text: "UNITY CITY RP | Departamento de Economía" })
+        .setFooter({ text: "UNITY CITY RP | NEGOCIOS" })
         .setTimestamp();
       await interaction.reply({ embeds: [embed] });
     }
@@ -172,7 +172,7 @@ INTEGRANTES:
 BOCETO O FOTO DE EL GRAFITI:
         `)
         .setColor("Purple")
-        .setFooter({ text: "UNITY CITY RP | Departamento de Bandas" })
+        .setFooter({ text: "UNITY CITY RP | ILEGALES" })
         .setTimestamp();
       await interaction.reply({ embeds: [embed] });
     }
