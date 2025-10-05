@@ -67,9 +67,10 @@ client.on("ready", async () => {
 
   const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
   try {
-    console.log("🔄 Registrando comandos en el servidor...");
+    console.log("🔄 Registrando comandos globalmente...");
+    // Registrando comandos globalmente
     await rest.put(
-      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+      Routes.applicationCommands(process.env.CLIENT_ID),
       { body: commands }
     );
     console.log("✅ Comandos registrados correctamente.");
@@ -121,6 +122,9 @@ client.on("interactionCreate", async (interaction) => {
 
   // ---- Comprobamos si la interacción es un comando ---- //
   if (!interaction.isCommand()) return;
+
+  // Añadir log para comprobar si se reciben los comandos
+  console.log(`Comando recibido: ${interaction.commandName}`); // Log para verificar
 
   // ---- Comandos restringidos a staff ---- //
   const STAFF_ROLE_ID = "1254109535602344026";
