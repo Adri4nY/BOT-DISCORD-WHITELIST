@@ -249,5 +249,99 @@ client.on("guildMemberAdd", async (member) => {
   channel.send({ embeds: [embed] });
 });
 
+//COMANDOS
+
+// ---- Comando /negocios ----
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isCommand()) return;
+
+  if (interaction.commandName === "negocios") {
+    // Verificamos que solo los staff puedan usarlo (usa el ID de tu rol staff)
+    const STAFF_ROLE_ID = "1254109535602344026";
+    if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
+      return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", ephemeral: true });
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("🏢 Solicitud de Negocio - UNITY CITY")
+      .setDescription(
+        "Por favor copia este formato y complétalo para enviar tu solicitud de negocio, adjuntar en este ticket al estilo PDF y un encargado os lo revisara. Recordar ser creativos, y sobre todo tener buenas ideas.Suerte!!:\n\n" +
+        "📛 **Nombre del Negocio:**\n" +
+        "👤 **Motivo por el que quieres postular a ese negocio:**\n" +
+        "💼 **Jerarquia de rangos:**\n" +
+        "💰 **Normativa del local:**\n" +
+        "📍 **Ubicación (si aplica):**\n" +
+        "🧾 **Tipos de eventos:**\n" +
+      )
+      .setColor("Purple")
+      .setFooter({ text: "UNITY CITY RP | Departamento de Economía" })
+      .setTimestamp();
+
+    await interaction.reply({ embeds: [embed] });
+  }
+});
+
+// ---- Comando /negocios ----
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isCommand()) return;
+
+  if (interaction.commandName === "streamer") {
+    // Verificamos que solo los staff puedan usarlo (usa el ID de tu rol staff)
+    const STAFF_ROLE_ID = "1254109535602344026";
+    if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
+      return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", ephemeral: true });
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("Solicitud de Streamer - UNITY CITY")
+      .setDescription(
+        "Por favor copia este formato y complétalo para enviar tu solicitud de streamer:\n\n" +
+        "NOMBRE OOC:**\n" +
+        "CUANTO TIEMPO LLEVAS EN EL SERVIDOR:**\n" +
+        "HORAS EN FIVEM:**\n" +
+        "URL STEAM:**\n" +
+        "LINK DE TUS REDES SOCIALES EN LAS QUE TRANSMITIRIAS**\n" +
+      )
+      .setColor("Purple")
+      .setFooter({ text: "UNITY CITY RP | POSTULACION STREAMER" })
+      .setTimestamp();
+
+    await interaction.reply({ embeds: [embed] });
+  }
+});
+
+// ---- Comando /pstaff ----
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isCommand()) return;
+
+  if (interaction.commandName === "pstaff") {
+    // Verificamos que solo los staff puedan usarlo (usa el ID de tu rol staff)
+    const STAFF_ROLE_ID = "1254109535602344026";
+    if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
+      return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", ephemeral: true });
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("POSTULACION STAFF - UNITY CITY")
+      .setDescription(
+        "Por favor copia este formato y complétalo para enviar tu postulacion a STAFF:\n\n" +
+        "NOMBRE OOC:**\n" +
+        "EDAD OOC:**\n" +
+        "CUANTO TIEMPO LLEVAS EN EL SERVIDOR:**\n" +
+        "TIENES ALGUNA SANCION ADMINISTRATIVA:**\n" +
+        "CUALIDADES Y PUNTOS FUERTES:**\n" +
+        "DISPONIBILIDAD HORARIA**\n" +
+        "URL DE STEAM**\n" +
+      )
+      .setColor("Purple")
+      .setFooter({ text: "UNITY CITY RP | POSTULACION STAFF" })
+      .setTimestamp();
+
+    await interaction.reply({ embeds: [embed] });
+  }
+});
+
+
+
 // ------------------- Login ------------------- //
 client.login(process.env.TOKEN);
