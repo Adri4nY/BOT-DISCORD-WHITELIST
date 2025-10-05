@@ -47,7 +47,7 @@ const client = new Client({
   partials: [Partials.Channel],
 });
 
-client.on("ready", () => {
+client.on("clientReady", () => {
   console.log(`✅ Bot iniciado como: ${client.user.tag}`);
   client.user.setPresence({
     activities: [{ name: "UNITY CITY 🎮", type: 0 }],
