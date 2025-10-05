@@ -11,6 +11,7 @@ const {
 } = require("discord.js");
 const fs = require("fs");
 const express = require("express");
+require("dotenv").config();
 
 // ------------------- Servidor web ------------------- //
 const app = express();
@@ -33,6 +34,7 @@ const MOD_ROLES = {
   soporte: "1226606408682700862",
   admin: "1203773772868620308"
 };
+const STAFF_ROLE_ID = "1254109535602344026"; // rol staff para comandos
 const cooldowns = {};
 
 // ------------------- Cliente Discord ------------------- //
@@ -46,7 +48,7 @@ const client = new Client({
   partials: [Partials.Channel],
 });
 
-client.once("ready", () => {
+client.on("ready", () => {
   console.log(`✅ Bot iniciado como: ${client.user.tag}`);
   client.user.setPresence({
     activities: [{ name: "UNITY CITY 🎮", type: 0 }],
@@ -76,7 +78,8 @@ async function hacerPregunta(channel, usuario, pregunta, index, total) {
 
   return new Promise((resolve) => {
     const filter = (i) => i.user.id === usuario.id;
-    msg.awaitMessageComponent({ filter, time: 60000 })
+    msg
+      .awaitMessageComponent({ filter, time: 60000 })
       .then(async (interaction) => {
         await interaction.deferUpdate().catch(() => {});
         await msg.delete().catch(() => {});
@@ -93,10 +96,13 @@ async function hacerPregunta(channel, usuario, pregunta, index, total) {
 // ------------------- Interacciones ------------------- //
 client.on("interactionCreate", async (interaction) => {
   const guild = interaction.guild;
-  if (!interaction.isCommand() && !interaction.isStringSelectMenu() && !interaction.isButton()) return;
 
-  // ---- /setup-soporte ----
+  // ---- Setup Soporte (Select Menu) ----
   if (interaction.isCommand() && interaction.commandName === "setup-soporte") {
+    if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
+      return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", ephemeral: true });
+    }
+
     const embed = new EmbedBuilder()
       .setTitle("🎫 Sistema de Tickets - UNITY CITY")
       .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
@@ -107,16 +113,16 @@ client.on("interactionCreate", async (interaction) => {
         .setCustomId("ticket_select")
         .setPlaceholder("Abrir un ticket...")
         .addOptions([
-          { label: "Soporte General", value: "soporte_general", emoji: "🟢" },
-          { label: "Reportes", value: "reportes", emoji: "🐞" },
-          { label: "CK", value: "ck", emoji: "💀" },
-          { label: "Donaciones", value: "donaciones", emoji: "💸" },
-          { label: "Facciones", value: "facciones", emoji: "🏢" },
-          { label: "Postulación", value: "postulacion", emoji: "📋" }
+          { label: "Soporte General", value: "soporte_general", description: "Abrir ticket de soporte general", emoji: "🟢" },
+          { label: "Reportes", value: "reportes", description: "Abrir ticket de reportes", emoji: "🐞" },
+          { label: "CK", value: "ck", description: "Abrir ticket de CK", emoji: "💀" },
+          { label: "Donaciones", value: "donaciones", description: "Abrir ticket de donaciones", emoji: "💸" },
+          { label: "Facciones", value: "facciones", description: "Abrir ticket de facciones", emoji: "🏢" },
+          { label: "Postulación", value: "postulacion", description: "Abrir ticket de postulación", emoji: "📋" },
         ])
     );
 
-    return await interaction.reply({ embeds: [embed], components: [row] });
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 
   // ---- Ticket Select ----
@@ -131,6 +137,7 @@ client.on("interactionCreate", async (interaction) => {
     };
 
     const { cat, label } = ticketMap[interaction.values[0]];
+
     const channel = await guild.channels.create({
       name: `${interaction.values[0]}-${interaction.user.username}`,
       type: 0,
@@ -144,7 +151,8 @@ client.on("interactionCreate", async (interaction) => {
     const embedTicket = new EmbedBuilder()
       .setTitle(label)
       .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**. Un miembro del staff te atenderá pronto.`)
-      .setColor("Blue");
+      .setColor("Blue")
+      .setTimestamp();
 
     const rowCerrar = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId("cerrar_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger)
@@ -157,100 +165,82 @@ client.on("interactionCreate", async (interaction) => {
       allowedMentions: { roles: [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin] }
     });
 
-    return interaction.reply({ content: `✅ Ticket creado: ${channel}`, ephemeral: true });
+    await interaction.reply({ content: `✅ Ticket creado: ${channel}`, ephemeral: true });
   }
 
   // ---- Cerrar ticket ----
   if (interaction.isButton() && interaction.customId === "cerrar_ticket") {
     await interaction.reply({ content: "⏳ Cerrando ticket en 5 segundos...", ephemeral: true });
-    return setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
+    setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
   }
 
-  // ---- /negocios ----
-  if (interaction.isCommand() && interaction.commandName === "negocios") {
-    const STAFF_ROLE_ID = "1254109535602344026";
-    if (!interaction.member.roles.cache.has(STAFF_ROLE_ID))
+  // ---- Botón Whitelist ----
+  if (interaction.isButton() && interaction.customId === "whitelist") {
+    const userId = interaction.user.id;
+    const now = Date.now();
+
+    if (cooldowns[userId] && now - cooldowns[userId] < COOLDOWN_HORAS * 60 * 60 * 1000) {
+      const remaining = COOLDOWN_HORAS * 60 * 60 * 1000 - (now - cooldowns[userId]);
+      const hours = Math.floor(remaining / (1000 * 60 * 60));
+      const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+      return interaction.reply({
+        content: `⚠️ Ya hiciste un intento de whitelist. Debes esperar ${hours}h ${minutes}m antes de intentarlo de nuevo.`,
+        ephemeral: true,
+      });
+    }
+
+    cooldowns[userId] = now;
+
+    const channel = await guild.channels.create({
+      name: `whitelist-${interaction.user.username}`,
+      type: 0,
+      parent: WHITELIST_CATEGORY_ID,
+      permissionOverwrites: [
+        { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+      ],
+    });
+
+    await interaction.reply({ content: `✅ Ticket de whitelist creado: ${channel}`, ephemeral: true });
+
+    let puntaje = 0;
+    for (let i = 0; i < preguntas.length; i++) {
+      const respuesta = await hacerPregunta(channel, interaction.user, preguntas[i], i, preguntas.length);
+      if (respuesta && respuesta === preguntas[i].respuesta) puntaje++;
+    }
+
+    const aprobado = puntaje >= 9;
+    const resultadoEmbed = new EmbedBuilder()
+      .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
+      .setDescription(aprobado
+        ? `🎉 ¡Felicidades ${interaction.user.username}, has aprobado la whitelist!\n**Puntaje:** ${puntaje}/${preguntas.length}`
+        : `😢 Lo sentimos ${interaction.user.username}, no has aprobado la whitelist.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
+      .setColor(aprobado ? "Green" : "Red");
+
+    const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+    if (logChannel) logChannel.send({ embeds: [resultadoEmbed] });
+
+    await channel.send({ embeds: [resultadoEmbed] });
+
+    if (aprobado) {
+      try {
+        const member = await guild.members.fetch(interaction.user.id);
+        await member.roles.add(ROLES.whitelist);
+        await member.roles.remove(ROLES.sinWhitelist);
+        await channel.send("🎉 ¡Has recibido el rol de **Whitelist**!");
+      } catch (err) {
+        console.error("❌ Error al asignar rol:", err);
+        await channel.send("⚠️ Error al asignar rol, avisa a un staff.");
+      }
+    }
+
+    setTimeout(() => channel.delete().catch(() => {}), 30000);
+  }
+
+  // ---- Comandos staff: negocios, streamer, pstaff ----
+  if (interaction.isCommand()) {
+    if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
       return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", ephemeral: true });
+    }
 
-    const embed = new EmbedBuilder()
-      .setTitle("🏢 Solicitud de Negocio - UNITY CITY")
-      .setDescription(
-        "📋 **Formato de Solicitud:**\n\n" +
-        "📛 **Nombre del Negocio:**\n" +
-        "👤 **Motivo por el que quieres postular:**\n" +
-        "💼 **Jerarquía de rangos:**\n" +
-        "💰 **Normativa del local:**\n" +
-        "📍 **Ubicación (si aplica):**\n" +
-        "🧾 **Tipos de eventos:**"
-      )
-      .setColor("Purple")
-      .setFooter({ text: "UNITY CITY RP | Departamento de Economía" });
-
-    return interaction.reply({ embeds: [embed] });
-  }
-
-  // ---- /streamer ----
-  if (interaction.isCommand() && interaction.commandName === "streamer") {
-    const STAFF_ROLE_ID = "1254109535602344026";
-    if (!interaction.member.roles.cache.has(STAFF_ROLE_ID))
-      return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", ephemeral: true });
-
-    const embed = new EmbedBuilder()
-      .setTitle("🎥 Solicitud de Streamer - UNITY CITY")
-      .setDescription(
-        "📋 **Formato de Solicitud:**\n\n" +
-        "🧑‍💻 **Nombre OOC:**\n" +
-        "⏰ **Tiempo en el servidor:**\n" +
-        "⌛ **Horas en FiveM:**\n" +
-        "🔗 **URL de Steam:**\n" +
-        "📹 **Redes sociales donde transmitirías:**"
-      )
-      .setColor("Purple")
-      .setFooter({ text: "UNITY CITY RP | Postulación Streamer" });
-
-    return interaction.reply({ embeds: [embed] });
-  }
-
-  // ---- /pstaff ----
-  if (interaction.isCommand() && interaction.commandName === "pstaff") {
-    const STAFF_ROLE_ID = "1254109535602344026";
-    if (!interaction.member.roles.cache.has(STAFF_ROLE_ID))
-      return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", ephemeral: true });
-
-    const embed = new EmbedBuilder()
-      .setTitle("🛠️ Postulación STAFF - UNITY CITY")
-      .setDescription(
-        "📋 **Formato de Solicitud:**\n\n" +
-        "🧑‍💻 **Nombre OOC:**\n" +
-        "🎂 **Edad OOC:**\n" +
-        "⏰ **Tiempo en el servidor:**\n" +
-        "⚠️ **¿Tienes alguna sanción?:**\n" +
-        "💬 **Cualidades y puntos fuertes:**\n" +
-        "📆 **Disponibilidad horaria:**\n" +
-        "🔗 **URL de Steam:**"
-      )
-      .setColor("Blue")
-      .setFooter({ text: "UNITY CITY RP | Postulación STAFF" });
-
-    return interaction.reply({ embeds: [embed] });
-  }
-});
-
-// ------------------- Bienvenidas ------------------- //
-client.on("guildMemberAdd", async (member) => {
-  const canalBienvenida = "1422298345241841824";
-  const channel = member.guild.channels.cache.get(canalBienvenida);
-  if (!channel) return;
-
-  const embed = new EmbedBuilder()
-    .setTitle("🎉 ¡Nuevo miembro en UNITY CITY!")
-    .setDescription(`Bienvenido/a ${member} a **${member.guild.name}** 🚀\n👉 No olvides leer las normas y realizar la whitelist.`)
-    .setColor("Purple")
-    .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-    .setFooter({ text: "UNITY CITY RP", iconURL: member.guild.iconURL() });
-
-  channel.send({ embeds: [embed] });
-});
-
-// ------------------- Login ------------------- //
-client.login(process.env.TOKEN);
+    let
