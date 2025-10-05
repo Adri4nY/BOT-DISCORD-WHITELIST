@@ -333,5 +333,5 @@ const rest = new REST({ version: "10" }).setToken("TU_TOKEN_AQUI");
 })();
 
 // ------------------- Login ------------------- //
-client.login("TU_TOKEN_AQUI");
+client.login("8ff28586e74c9569f47e058ee5bd91e58b0175bd4ec4cdb6f52b5ba189ab3925");
 
