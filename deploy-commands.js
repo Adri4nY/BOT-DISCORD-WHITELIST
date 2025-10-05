@@ -21,9 +21,9 @@ const commands = [
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 
-// ⚠️ REEMPLAZA ESTOS IDs
-const CLIENT_ID = "1422713122657140866";
-const GUILD_ID = "821091789325729803";
+// ⚠️ REEMPLAZA ESTOS IDs CON LOS TUYOS
+const CLIENT_ID = "1422713122657140866"; // ID del bot
+const GUILD_ID = "821091789325729803";   // ID del servidor
 
 (async () => {
   try {
@@ -34,3 +34,4 @@ const GUILD_ID = "821091789325729803";
     console.error("❌ Error al registrar comandos:", error);
   }
 })();
+
