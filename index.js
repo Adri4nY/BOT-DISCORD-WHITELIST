@@ -265,4 +265,4 @@ client.on("guildMemberAdd", async (member) => {
 });
 
 // ------------------- Login ------------------- //
-client.login("MTQyMjcxMzEyMjY1NzE0MDg2Ng.G7jpqn.GTStYVP-2e7Shw7xbCFMdKeEi18kxLD5o0Eq9Y");
+client.login(process.env.TOKEN);
