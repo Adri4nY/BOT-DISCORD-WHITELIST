@@ -7,11 +7,13 @@ const {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
-  PermissionsBitField
+  PermissionsBitField,
+  REST,
+  Routes,
+  SlashCommandBuilder
 } = require("discord.js");
 const fs = require("fs");
 const express = require("express");
-require("dotenv").config();
 
 // ------------------- Servidor web ------------------- //
 const app = express();
@@ -25,16 +27,20 @@ const LOG_CHANNEL_ID = "1422893357042110546";
 const WHITELIST_CATEGORY_ID = "1422897937427464203";
 const SOPORTE_CATEGORY_ID = "1422898157829881926";
 const COOLDOWN_HORAS = 6;
+
 const ROLES = {
   whitelist: "822529294365360139",
   sinWhitelist: "1320037024358600734",
 };
+
 const MOD_ROLES = {
   moderador: "1226606346967973900",
   soporte: "1226606408682700862",
   admin: "1203773772868620308"
 };
-const STAFF_ROLE_ID = "1254109535602344026"; // rol staff para comandos
+
+const STAFF_ROLE_ID = "1254109535602344026"; // Rol staff general
+
 const cooldowns = {};
 
 // ------------------- Cliente Discord ------------------- //
@@ -213,8 +219,8 @@ client.on("interactionCreate", async (interaction) => {
     const resultadoEmbed = new EmbedBuilder()
       .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
       .setDescription(aprobado
-        ? `🎉 ¡Felicidades ${interaction.user.username}, has aprobado la whitelist!\n**Puntaje:** ${puntaje}/${preguntas.length}`
-        : `😢 Lo sentimos ${interaction.user.username}, no has aprobado la whitelist.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
+        ? `🎉 ¡Felicidades ${interaction.user}, has aprobado la whitelist!\n**Puntaje:** ${puntaje}/${preguntas.length}`
+        : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
       .setColor(aprobado ? "Green" : "Red");
 
     const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
@@ -237,69 +243,50 @@ client.on("interactionCreate", async (interaction) => {
     setTimeout(() => channel.delete().catch(() => {}), 30000);
   }
 
-  // ---- Comandos staff: negocios, streamer, pstaff ----
-  if (interaction.isCommand()) {
-    if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
-      return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", ephemeral: true });
-    }
+  // ---- Comandos de formatos ----
+  if (!interaction.isCommand()) return;
 
-    let embed;
-    switch (interaction.commandName) {
-      case "negocios":
-        embed = new EmbedBuilder()
-          .setTitle("🏢 Solicitud de Negocio - UNITY CITY")
-          .setDescription(
-            "Por favor copia este formato y complétalo para enviar tu solicitud de negocio, adjuntar en este ticket al estilo PDF y un encargado os lo revisara. Recordar ser creativos, y sobre todo tener buenas ideas.Suerte!!:\n\n" +
-            "📛 **Nombre del Negocio:**\n" +
-            "👤 **Motivo por el que quieres postular a ese negocio:**\n" +
-            "💼 **Jerarquia de rangos:**\n" +
-            "💰 **Normativa del local:**\n" +
-            "📍 **Ubicación (si aplica):**\n" +
-            "🧾 **Tipos de eventos:**\n"
-          )
-          .setColor("Purple")
-          .setFooter({ text: "UNITY CITY RP | Departamento de Economía" })
-          .setTimestamp();
-        break;
+  if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
+    return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", ephemeral: true });
+  }
 
-      case "streamer":
-        embed = new EmbedBuilder()
-          .setTitle("🎥 Postulación Streamer - UNITY CITY")
-          .setDescription(
-            "Por favor copia este formato y complétalo para enviar tu solicitud de streamer:\n\n" +
-            "NOMBRE OOC:\n" +
-            "CUANTO TIEMPO LLEVAS EN EL SERVIDOR:\n" +
-            "HORAS EN FIVEM:\n" +
-            "URL STEAM:\n" +
-            "LINK DE TUS REDES SOCIALES EN LAS QUE TRANSMITIRIAS:\n"
-          )
-          .setColor("Purple")
-          .setFooter({ text: "UNITY CITY RP | POSTULACION STREAMER" })
-          .setTimestamp();
-        break;
+  const crearEmbedFormato = (title, description, footer) => {
+    return new EmbedBuilder().setTitle(title).setDescription(description).setColor("Purple").setFooter({ text: footer }).setTimestamp();
+  };
 
-      case "pstaff":
-        embed = new EmbedBuilder()
-          .setTitle("🛠️ Postulación Staff - UNITY CITY")
-          .setDescription(
-            "Por favor copia este formato y complétalo para enviar tu postulacion a STAFF:\n\n" +
-            "NOMBRE OOC:\n" +
-            "EDAD OOC:\n" +
-            "CUANTO TIEMPO LLEVAS EN EL SERVIDOR:\n" +
-            "TIENES ALGUNA SANCION ADMINISTRATIVA:\n" +
-            "CUALIDADES Y PUNTOS FUERTES:\n" +
-            "DISPONIBILIDAD HORARIA:\n" +
-            "URL DE STEAM:\n"
-          )
-          .setColor("Purple")
-          .setFooter({ text: "UNITY CITY RP | POSTULACION STAFF" })
-          .setTimestamp();
-        break;
+  if (interaction.commandName === "negocios") {
+    const embed = crearEmbedFormato(
+      "🏢 Solicitud de Negocio - UNITY CITY",
+      "Por favor copia este formato y complétalo para enviar tu solicitud de negocio:\n\n📛 **Nombre del Negocio:**\n👤 **Motivo por el que quieres postular a ese negocio:**\n💼 **Jerarquia de rangos:**\n💰 **Normativa del local:**\n📍 **Ubicación (si aplica):**\n🧾 **Tipos de eventos:**",
+      "UNITY CITY RP | Departamento de Economía"
+    );
+    await interaction.reply({ embeds: [embed] });
+  }
 
-      default:
-        return;
-    }
+    if (interaction.commandName === "ilegales") {
+    const embed = crearEmbedFormato(
+      "Solicitud de Ilegales - UNITY CITY",
+      "Por favor copia este formato y complétalo para enviar tu solicitud de ilegales:\n\nORIGEN DE LA BANDA:\nHISTORIA Y EXPANSION DE LA BANDA:\nESTRUCTURA Y SIMBOLOS QUE LES REPRESENTEN:\nPERSONALIDAD Y REPUTACION:\nQUE VAIS A APORTAR AL SERVIDOR DE NUEVO, COMO PRETENDEIS FOMENTAR EL ROL?\nDISPONIBILIDAD HORARIA DE LOS MIEMBROS DE LA BANDA, E INTENCION DE PROGRESION DE LA MISMA:\n\nFOTO DE LA UBICACION DEL BARRIO:\n\nINTEGRANTES:\n\nBOCETO O FOTO DE EL GRAFITI:\n
+      "UNITY CITY RP | POSTULACION ILEGALES"
+    );
+    await interaction.reply({ embeds: [embed] });
+  }
+  
+  if (interaction.commandName === "streamer") {
+    const embed = crearEmbedFormato(
+      "Solicitud de Streamer - UNITY CITY",
+      "Por favor copia este formato y complétalo para enviar tu solicitud de streamer:\n\nNOMBRE OOC:\nCUANTO TIEMPO LLEVAS EN EL SERVIDOR:\nHORAS EN FIVEM:\nURL STEAM:\nLINK DE TUS REDES SOCIALES EN LAS QUE TRANSMITIRIAS",
+      "UNITY CITY RP | POSTULACION STREAMER"
+    );
+    await interaction.reply({ embeds: [embed] });
+  }
 
+  if (interaction.commandName === "pstaff") {
+    const embed = crearEmbedFormato(
+      "POSTULACION STAFF - UNITY CITY",
+      "Por favor copia este formato y complétalo para enviar tu postulacion a STAFF:\n\nNOMBRE OOC:\nEDAD OOC:\nCUANTO TIEMPO LLEVAS EN EL SERVIDOR:\nTIENES ALGUNA SANCION ADMINISTRATIVA:\nCUALIDADES Y PUNTOS FUERTES:\nDISPONIBILIDAD HORARIA:\nURL DE STEAM:",
+      "UNITY CITY RP | POSTULACION STAFF"
+    );
     await interaction.reply({ embeds: [embed] });
   }
 });
@@ -321,5 +308,30 @@ client.on("guildMemberAdd", async (member) => {
   channel.send({ embeds: [embed] });
 });
 
+// ------------------- Registro de comandos slash ------------------- //
+const CLIENT_ID = "1422713122657140866";
+const GUILD_ID = "821091789325729803";
+
+const commands = [
+  new SlashCommandBuilder().setName("negocios").setDescription("📋 Enviar formato de solicitud de negocio."),
+  new SlashCommandBuilder().setName("ilegales").setDescription("🔫  Enviar formato de solicitud de ilegales."),
+  new SlashCommandBuilder().setName("streamer").setDescription("🎥 Enviar formato de postulación a streamer."),
+  new SlashCommandBuilder().setName("pstaff").setDescription("🛠️ Enviar formato de postulación a staff."),
+  new SlashCommandBuilder().setName("setup-soporte").setDescription("⚙️ Configura el sistema de tickets (solo staff).")
+].map(cmd => cmd.toJSON());
+
+const rest = new REST({ version: "10" }).setToken("TU_TOKEN_AQUI");
+
+(async () => {
+  try {
+    console.log("🔁 Registrando comandos slash...");
+    await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
+    console.log("✅ ¡Comandos registrados correctamente!");
+  } catch (error) {
+    console.error("❌ Error al registrar comandos:", error);
+  }
+})();
+
 // ------------------- Login ------------------- //
-client.login(process.env.TOKEN);
+client.login("TU_TOKEN_AQUI");
+
