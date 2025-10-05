@@ -1,3 +1,4 @@
+// ------------------- Cargar variables de entorno ------------------- //
 require('dotenv').config();
 const { 
   Client, 
@@ -264,6 +265,6 @@ client.on("guildMemberAdd", async (member) => {
 });
 
 // ------------------- Login ------------------- //
-require('dotenv').config();
-// ...
-client.login(process.env.DISCORD_TOKEN);
+client.login(process.env.DISCORD_TOKEN)
+  .then(() => console.log("🔑 Login exitoso"))
+  .catch(err => console.error("❌ Error al iniciar sesión:", err));
