@@ -13,6 +13,9 @@ const {
 const fs = require("fs");
 const express = require("express");
 require("dotenv").config();
+console.log('CLIENT_ID:', process.env.CLIENT_ID);
+console.log('GUILD_ID:', process.env.GUILD_ID);
+console.log('TOKEN:', process.env.TOKEN);
 
 // ------------------- Servidor web ------------------- //
 const app = express();
