@@ -265,4 +265,5 @@ client.on("guildMemberAdd", async (member) => {
 });
 
 // ------------------- Login ------------------- //
-client.login(process.env.TOKEN);
+require('dotenv').config();
+client.login(process.env.DISCORD_TOKEN);
