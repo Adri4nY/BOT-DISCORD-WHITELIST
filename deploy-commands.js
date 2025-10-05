@@ -25,13 +25,16 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 const CLIENT_ID = "1422713122657140866"; // ID del bot
 const GUILD_ID = "821091789325729803";   // ID del servidor
 
-(async () => {
-  try {
-    console.log("🔁 Registrando comandos slash...");
-    await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
-    console.log("✅ ¡Comandos registrados correctamente!");
-  } catch (error) {
-    console.error("❌ Error al registrar comandos:", error);
-  }
+const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+try {
+  console.log("🔄 Registrando comandos en el servidor...");
+  await rest.put(
+    Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+    { body: commands }
+  );
+  console.log("✅ Comandos registrados correctamente.");
+} catch (error) {
+  console.error("❌ Error registrando comandos:", error);
+}
 })();
 
