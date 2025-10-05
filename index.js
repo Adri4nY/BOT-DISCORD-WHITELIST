@@ -243,4 +243,83 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", ephemeral: true });
     }
 
-    let
+    let embed;
+    switch (interaction.commandName) {
+      case "negocios":
+        embed = new EmbedBuilder()
+          .setTitle("🏢 Solicitud de Negocio - UNITY CITY")
+          .setDescription(
+            "Por favor copia este formato y complétalo para enviar tu solicitud de negocio, adjuntar en este ticket al estilo PDF y un encargado os lo revisara. Recordar ser creativos, y sobre todo tener buenas ideas.Suerte!!:\n\n" +
+            "📛 **Nombre del Negocio:**\n" +
+            "👤 **Motivo por el que quieres postular a ese negocio:**\n" +
+            "💼 **Jerarquia de rangos:**\n" +
+            "💰 **Normativa del local:**\n" +
+            "📍 **Ubicación (si aplica):**\n" +
+            "🧾 **Tipos de eventos:**\n"
+          )
+          .setColor("Purple")
+          .setFooter({ text: "UNITY CITY RP | Departamento de Economía" })
+          .setTimestamp();
+        break;
+
+      case "streamer":
+        embed = new EmbedBuilder()
+          .setTitle("🎥 Postulación Streamer - UNITY CITY")
+          .setDescription(
+            "Por favor copia este formato y complétalo para enviar tu solicitud de streamer:\n\n" +
+            "NOMBRE OOC:\n" +
+            "CUANTO TIEMPO LLEVAS EN EL SERVIDOR:\n" +
+            "HORAS EN FIVEM:\n" +
+            "URL STEAM:\n" +
+            "LINK DE TUS REDES SOCIALES EN LAS QUE TRANSMITIRIAS:\n"
+          )
+          .setColor("Purple")
+          .setFooter({ text: "UNITY CITY RP | POSTULACION STREAMER" })
+          .setTimestamp();
+        break;
+
+      case "pstaff":
+        embed = new EmbedBuilder()
+          .setTitle("🛠️ Postulación Staff - UNITY CITY")
+          .setDescription(
+            "Por favor copia este formato y complétalo para enviar tu postulacion a STAFF:\n\n" +
+            "NOMBRE OOC:\n" +
+            "EDAD OOC:\n" +
+            "CUANTO TIEMPO LLEVAS EN EL SERVIDOR:\n" +
+            "TIENES ALGUNA SANCION ADMINISTRATIVA:\n" +
+            "CUALIDADES Y PUNTOS FUERTES:\n" +
+            "DISPONIBILIDAD HORARIA:\n" +
+            "URL DE STEAM:\n"
+          )
+          .setColor("Purple")
+          .setFooter({ text: "UNITY CITY RP | POSTULACION STAFF" })
+          .setTimestamp();
+        break;
+
+      default:
+        return;
+    }
+
+    await interaction.reply({ embeds: [embed] });
+  }
+});
+
+// ------------------- Bienvenidas ------------------- //
+client.on("guildMemberAdd", async (member) => {
+  const canalBienvenida = "1422298345241841824";
+  const channel = member.guild.channels.cache.get(canalBienvenida);
+  if (!channel) return console.error("❌ No encontré el canal de bienvenida.");
+
+  const embed = new EmbedBuilder()
+    .setTitle("🎉 ¡Nuevo miembro en **UNITY CITY**!")
+    .setDescription(`Bienvenido/a ${member} a **${member.guild.name}** 🚀\n👉 No olvides leer las normas y realizar la whitelist.`)
+    .setColor("Purple")
+    .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+    .setFooter({ text: "UNITY CITY RP", iconURL: member.guild.iconURL() })
+    .setTimestamp();
+
+  channel.send({ embeds: [embed] });
+});
+
+// ------------------- Login ------------------- //
+client.login(process.env.TOKEN);
