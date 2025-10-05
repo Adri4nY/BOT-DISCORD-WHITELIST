@@ -264,4 +264,4 @@ client.on("guildMemberAdd", async (member) => {
 });
 
 // ------------------- Login ------------------- //
-client.login(process.env.TOKEN).catch((err) => console.error("❌ Error al iniciar sesión:", err));
+client.login("MTQyMjcxMzEyMjY1NzE0MDg2Ng.GB7Rdv.SXrxe-q0xNRg2Px0A4dgnIPV32u42fipB-a3Rk");
