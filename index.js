@@ -7,7 +7,6 @@ const {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
-  PermissionsBitField,
   REST,
   Routes
 } = require("discord.js");
@@ -58,8 +57,8 @@ const commands = [
   { name: "setup-soporte", description: "Configura el sistema de tickets" }
 ];
 
-// Registrar comandos en el servidor
-client.on("clientReady", async () => {
+// ------------------- Evento 'ready' (actualizado) ------------------- //
+client.on("ready", async () => {
   console.log(`✅ Bot iniciado como: ${client.user.tag}`);
   client.user.setPresence({
     activities: [{ name: "UNITY CITY 🎮", type: 0 }],
@@ -120,22 +119,24 @@ async function hacerPregunta(channel, usuario, pregunta, index, total) {
 client.on("interactionCreate", async (interaction) => {
   const guild = interaction.guild;
 
-  // ---- Comandos Slash ---- //
-  if (interaction.isCommand()) {
-    const STAFF_ROLE_ID = "1254109535602344026";
+  // ---- Comprobamos si la interacción es un comando ---- //
+  if (!interaction.isCommand()) return;
 
-    // Solo staff puede usar ciertos comandos
-    if (["negocios", "ilegales", "streamer", "pstaff"].includes(interaction.commandName)) {
-      if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
-        return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", ephemeral: true });
-      }
+  // ---- Comandos restringidos a staff ---- //
+  const STAFF_ROLE_ID = "1254109535602344026";
+
+  // Solo staff puede usar ciertos comandos
+  if (["negocios", "ilegales", "streamer", "pstaff"].includes(interaction.commandName)) {
+    if (!interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
+      return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", ephemeral: true });
     }
+  }
 
-    // ---- /negocios ----
-    if (interaction.commandName === "negocios") {
-      const embed = new EmbedBuilder()
-        .setTitle("🏢 Solicitud de Negocio - UNITY CITY")
-        .setDescription(`
+  // ---- /negocios ----
+  if (interaction.commandName === "negocios") {
+    const embed = new EmbedBuilder()
+      .setTitle("🏢 Solicitud de Negocio - UNITY CITY")
+      .setDescription(`
 Por favor copia este formato y complétalo para enviar tu solicitud de negocio:
 
 📛 **Nombre del Negocio:**
@@ -144,18 +145,18 @@ Por favor copia este formato y complétalo para enviar tu solicitud de negocio:
 💰 **Normativa del local:**
 📍 **Ubicación (si aplica):**
 🧾 **Tipos de eventos:**
-        `)
-        .setColor("Purple")
-        .setFooter({ text: "UNITY CITY RP | NEGOCIOS" })
-        .setTimestamp();
-      await interaction.reply({ embeds: [embed] });
-    }
+      `)
+      .setColor("Purple")
+      .setFooter({ text: "UNITY CITY RP | NEGOCIOS" })
+      .setTimestamp();
+    await interaction.reply({ embeds: [embed] });
+  }
 
-    // ---- /ilegales ----
-    if (interaction.commandName === "ilegales") {
-      const embed = new EmbedBuilder()
-        .setTitle("💀 Solicitud de Banda Ilegal - UNITY CITY")
-        .setDescription(`
+  // ---- /ilegales ----
+  if (interaction.commandName === "ilegales") {
+    const embed = new EmbedBuilder()
+      .setTitle("💀 Solicitud de Banda Ilegal - UNITY CITY")
+      .setDescription(`
 Por favor copia este formato y complétalo para enviar tu solicitud de ilegales:
 
 ORIGEN DE LA BANDA:
@@ -170,18 +171,18 @@ FOTO DE LA UBICACION DEL BARRIO:
 INTEGRANTES:
 
 BOCETO O FOTO DE EL GRAFITI:
-        `)
-        .setColor("Purple")
-        .setFooter({ text: "UNITY CITY RP | ILEGALES" })
-        .setTimestamp();
-      await interaction.reply({ embeds: [embed] });
-    }
+      `)
+      .setColor("Purple")
+      .setFooter({ text: "UNITY CITY RP | ILEGALES" })
+      .setTimestamp();
+    await interaction.reply({ embeds: [embed] });
+  }
 
-    // ---- /streamer ----
-    if (interaction.commandName === "streamer") {
-      const embed = new EmbedBuilder()
-        .setTitle("🎥 Solicitud de Streamer - UNITY CITY")
-        .setDescription(`
+  // ---- /streamer ----
+  if (interaction.commandName === "streamer") {
+    const embed = new EmbedBuilder()
+      .setTitle("🎥 Solicitud de Streamer - UNITY CITY")
+      .setDescription(`
 Por favor copia este formato y complétalo para enviar tu solicitud de streamer:
 
 NOMBRE OOC:
@@ -189,18 +190,18 @@ CUANTO TIEMPO LLEVAS EN EL SERVIDOR:
 HORAS EN FIVEM:
 URL STEAM:
 LINK DE TUS REDES SOCIALES EN LAS QUE TRANSMITIRIAS:
-        `)
-        .setColor("Purple")
-        .setFooter({ text: "UNITY CITY RP | POSTULACION STREAMER" })
-        .setTimestamp();
-      await interaction.reply({ embeds: [embed] });
-    }
+      `)
+      .setColor("Purple")
+      .setFooter({ text: "UNITY CITY RP | POSTULACION STREAMER" })
+      .setTimestamp();
+    await interaction.reply({ embeds: [embed] });
+  }
 
-    // ---- /pstaff ----
-    if (interaction.commandName === "pstaff") {
-      const embed = new EmbedBuilder()
-        .setTitle("POSTULACION STAFF - UNITY CITY")
-        .setDescription(`
+  // ---- /pstaff ----
+  if (interaction.commandName === "pstaff") {
+    const embed = new EmbedBuilder()
+      .setTitle("POSTULACION STAFF - UNITY CITY")
+      .setDescription(`
 Por favor copia este formato y complétalo para enviar tu postulacion a STAFF:
 
 NOMBRE OOC:
@@ -210,56 +211,33 @@ TIENES ALGUNA SANCION ADMINISTRATIVA:
 CUALIDADES Y PUNTOS FUERTES:
 DISPONIBILIDAD HORARIA:
 URL DE STEAM:
-        `)
-        .setColor("Purple")
-        .setFooter({ text: "UNITY CITY RP | POSTULACION STAFF" })
-        .setTimestamp();
-      await interaction.reply({ embeds: [embed] });
-    }
-
-    // ---- /setup-soporte ----
-    if (interaction.commandName === "setup-soporte") {
-      const embed = new EmbedBuilder()
-        .setTitle("🎫 Sistema de Tickets - UNITY CITY")
-        .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
-        .setColor("Purple");
-
-      const row = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId("ticket_select")
-          .setPlaceholder("Abrir un ticket...")
-          .addOptions([
-            { label: "Soporte General", value: "soporte_general", description: "Abrir ticket de soporte general", emoji: "🟢" },
-            { label: "Reportes", value: "reportes", description: "Abrir ticket de reportes", emoji: "🐞" },
-            { label: "CK", value: "ck", description: "Abrir ticket de CK", emoji: "💀" },
-            { label: "Donaciones", value: "donaciones", description: "Abrir ticket de donaciones", emoji: "💸" },
-            { label: "Facciones", value: "facciones", description: "Abrir ticket de facciones", emoji: "🏢" },
-            { label: "Postulación", value: "postulacion", description: "Abrir ticket de postulación", emoji: "📋" },
-          ])
-      );
-
-      await interaction.reply({ embeds: [embed], components: [row] });
-    }
+      `)
+      .setColor("Purple")
+      .setFooter({ text: "UNITY CITY RP | POSTULACION STAFF" })
+      .setTimestamp();
+    await interaction.reply({ embeds: [embed] });
   }
 
-  // Aquí sigue tu código de tickets, botones y whitelist...
+  // ---- /setup-soporte ----
+  if (interaction.commandName === "setup-soporte") {
+    const embed = new EmbedBuilder()
+      .setTitle("🎫 Sistema de Tickets - UNITY CITY")
+      .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
+      .setColor("Purple");
+
+    const row = new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId("ticket_select")
+        .setPlaceholder("Abrir un ticket...")
+        .addOptions([
+          { label: "Soporte General", value: "soporte_general", description: "Ayuda general sobre el servidor", emoji: "🛠️" },
+          { label: "Problema de Roles", value: "problema_roles", description: "Problema con los roles o permisos", emoji: "🔑" },
+        ])
+    );
+
+    await interaction.reply({ embeds: [embed], components: [row] });
+  }
 });
 
-// ------------------- Bienvenidas ------------------- //
-client.on("guildMemberAdd", async (member) => {
-  const canalBienvenida = "1422298345241841824";
-  const channel = member.guild.channels.cache.get(canalBienvenida);
-  if (!channel) return;
-
-  const embed = new EmbedBuilder()
-    .setTitle("🎉 ¡Nuevo miembro en **UNITY CITY**!")
-    .setDescription(`Bienvenido/a ${member} a **${member.guild.name}** 🚀`)
-    .setColor("Purple")
-    .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-    .setTimestamp();
-
-  channel.send({ embeds: [embed] });
-});
-
-// ------------------- Login ------------------- //
+// ------------------- Iniciar el bot ------------------- //
 client.login(process.env.TOKEN);
