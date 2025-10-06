@@ -130,117 +130,108 @@ client.on("ready", async () => {
 });
 
 // ------------------- Interacciones ------------------- //
-client.on("interactionCreate", async (interaction) => {
+if (interaction.isChatInputCommand()) {
+  const commandName = interaction.commandName;
+  const allowedCommands = ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"];
+
+  // DeferReply para dar tiempo si hay operaciones async
+  await interaction.deferReply({ ephemeral: false }).catch(() => {});
+
   try {
-    const guild = interaction.guild;
-    if (!guild) return;
+    const member = await guild.members.fetch(interaction.user.id);
+    const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
 
-    // ------------------- Comandos de pautas ------------------- //
-    if (interaction.isChatInputCommand()) {
-      const commandName = interaction.commandName;
-      const allowedCommands = ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"];
-      const member = await guild.members.fetch(interaction.user.id);
-      const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
-
-      if (!allowedRoles.some(role => member.roles.cache.has(role))) {
-        return interaction.reply({
-          content: "❌ No tienes permiso para usar este comando. Solo Staff puede usarlo.",
-          ephemeral: true
-        });
-      }
-
-      if (!allowedCommands.includes(commandName)) return;
-
-      const embed = new EmbedBuilder()
-        .setTitle(`📌 Pautas para ${commandName.replace("p", "").toUpperCase()}`)
-        .setColor("Purple")
-        .setFooter({ text: "UNITY CITY RP - Postulación" })
-        .setTimestamp();
-
-      switch (commandName) {
-        case "pilegales":
-          embed.addFields(
-            { name: "📝 Formato", value: "PDF OBLIGATORIO", inline: false },
-            { name: "🏴 Origen de la banda", value: "Describe el origen de la banda.", inline: false },
-            { name: "📜 Historia y expansión", value: "Explica la historia y expansión de la banda.", inline: false },
-            { name: "⚔️ Estructura y símbolos", value: "Detalla la estructura y símbolos que representen la banda.", inline: false },
-            { name: "💎 Personalidad y reputación", value: "Describe la personalidad y reputación.", inline: false },
-            { name: "🎯 Aportación al servidor", value: "Qué vais a aportar y cómo fomentaréis el rol.", inline: false },
-            { name: "⏰ Disponibilidad", value: "Disponibilidad horaria de los miembros y planes de progresión.", inline: false },
-            { name: "📍 Ubicación", value: "Foto de la ubicación del barrio.", inline: false },
-            { name: "👥 Integrantes", value: "Lista de integrantes.", inline: false },
-            { name: "🎨 Grafiti", value: "Boceto o foto del grafiti.", inline: false }
-          );
-          break;
-
-        case "pnegocios":
-          embed.addFields(
-            { name: "🏪 Nombre del local", value: "Motivo por el que quieres postular a ese negocio", inline: false },
-            { name: "👥 Empleados", value: "Lista de empleados", inline: false },
-            { name: "📜 Normativa del local", value: "Reglas y normas internas", inline: false },
-            { name: "💡 Ideas para el negocio", value: "Ideas creativas para el negocio", inline: false },
-            { name: "🎉 Eventos planeados", value: "Eventos que tienes pensados para realizar", inline: false },
-            { name: "✨ Consejo", value: "Recordar ser creativos y tener buenas ideas! SUERTE!!", inline: false }
-          );
-          break;
-
-        case "pstaff":
-          embed.addFields(
-            { name: "🧑‍💼 Nombre OOC", value: "Tu nombre fuera del rol", inline: false },
-            { name: "🎂 Edad OOC", value: "Tu edad real", inline: false },
-            { name: "⏳ Tiempo en el servidor", value: "¿Cuánto tiempo llevas en el servidor?", inline: false },
-            { name: "⚠️ Sanciones administrativas", value: "¿Tienes alguna sanción grave?", inline: false },
-            { name: "💪 Cualidades y puntos fuertes", value: "Describe tus fortalezas", inline: false },
-            { name: "❌ Defectos y puntos débiles", value: "Describe tus debilidades", inline: false },
-            { name: "⏰ Disponibilidad horaria", value: "Horario en el que puedes estar activo", inline: false },
-            { name: "🎮 URL de Steam", value: "Link a tu cuenta de Steam", inline: false }
-          );
-          break;
-
-        case "pck":
-          embed.addFields(
-            { name: "🆔 Nombre IC", value: "Tu nombre dentro del rol", inline: false },
-            { name: "💀 Motivos para hacer CK", value: "Explica por qué deseas realizar CK", inline: false },
-            { name: "🎭 Rol posterior", value: "Rol que vas a desempeñar después de la muerte de este", inline: false },
-            { name: "💡 Otros detalles", value: "Cualquier otra información que quieras agregar sobre tu CK", inline: false }
-          );
-          break;
-
-        case "pstreamer":
-          embed.addFields(
-            { name: "🧑‍💻 Nombre OOC", value: "Tu nombre fuera del rol", inline: false },
-            { name: "🎂 Edad OOC", value: "Tu edad real", inline: false },
-            { name: "⏱️ Horas roleadas en FiveM", value: "Cantidad de horas roleadas", inline: false },
-            { name: "⏳ Tiempo en el servidor", value: "¿Cuánto tiempo llevas en el servidor?", inline: false },
-            { name: "🎮 URL de Steam", value: "Link a tu cuenta de Steam", inline: false },
-            { name: "📺 Link de la red social", value: "Red social donde vas a streamear el servidor", inline: false }
-          );
-          break;
-      }
-
-      await interaction.reply({ embeds: [embed], ephemeral: false });
-      return;
+    if (!allowedRoles.some(role => member.roles.cache.has(role))) {
+      return interaction.editReply({
+        content: "❌ No tienes permiso para usar este comando. Solo Staff puede usarlo."
+      });
     }
 
-      const logChannel = guild.channels.cache.get(RESET_LOG_CHANNEL_ID);
-      if (logChannel) {
-        const embedLog = new EmbedBuilder()
-          .setTitle("🧹 Whitelist Reseteada")
-          .setDescription(`El usuario **${target.tag}** ha sido reseteado.`)
-          .addFields(
-            { name: "👮‍♂️ Staff:", value: `${interaction.user.tag}`, inline: true },
-            { name: "🎯 Usuario:", value: `${target.tag}`, inline: true },
-            { name: "🕒 Fecha:", value: `<t:${Math.floor(Date.now() / 1000)}:F>` }
-          )
-          .setColor("Orange")
-          .setThumbnail(target.displayAvatarURL({ dynamic: true }))
-          .setFooter({ text: "Sistema de Whitelist - UNITY CITY" })
-          .setTimestamp();
-
-        await logChannel.send({ embeds: [embedLog] });
-      }
+    if (!allowedCommands.includes(commandName)) {
+      return interaction.editReply({ content: "⚠️ Comando no válido." });
     }
 
+    const embed = new EmbedBuilder()
+      .setTitle(`📌 Pautas para ${commandName.replace("p", "").toUpperCase()}`)
+      .setColor("Purple")
+      .setFooter({ text: "UNITY CITY RP - Postulación" })
+      .setTimestamp();
+
+    switch (commandName) {
+      case "pilegales":
+        embed.addFields(
+          { name: "📝 Formato", value: "PDF OBLIGATORIO", inline: false },
+          { name: "🏴 Origen de la banda", value: "Describe el origen de la banda.", inline: false },
+          { name: "📜 Historia y expansión", value: "Explica la historia y expansión de la banda.", inline: false },
+          { name: "⚔️ Estructura y símbolos", value: "Detalla la estructura y símbolos que representen la banda.", inline: false },
+          { name: "💎 Personalidad y reputación", value: "Describe la personalidad y reputación.", inline: false },
+          { name: "🎯 Aportación al servidor", value: "Qué vais a aportar y cómo fomentaréis el rol.", inline: false },
+          { name: "⏰ Disponibilidad", value: "Disponibilidad horaria de los miembros y planes de progresión.", inline: false },
+          { name: "📍 Ubicación", value: "Foto de la ubicación del barrio.", inline: false },
+          { name: "👥 Integrantes", value: "Lista de integrantes.", inline: false },
+          { name: "🎨 Grafiti", value: "Boceto o foto del grafiti.", inline: false }
+        );
+        break;
+
+      case "pnegocios":
+        embed.addFields(
+          { name: "🏪 Nombre del local", value: "Motivo por el que quieres postular a ese negocio", inline: false },
+          { name: "👥 Empleados", value: "Lista de empleados", inline: false },
+          { name: "📜 Normativa del local", value: "Reglas y normas internas", inline: false },
+          { name: "💡 Ideas para el negocio", value: "Ideas creativas para el negocio", inline: false },
+          { name: "🎉 Eventos planeados", value: "Eventos que tienes pensados para realizar", inline: false },
+          { name: "✨ Consejo", value: "Recordar ser creativos y tener buenas ideas! SUERTE!!", inline: false }
+        );
+        break;
+
+      case "pstaff":
+        embed.addFields(
+          { name: "🧑‍💼 Nombre OOC", value: "Tu nombre fuera del rol", inline: false },
+          { name: "🎂 Edad OOC", value: "Tu edad real", inline: false },
+          { name: "⏳ Tiempo en el servidor", value: "¿Cuánto tiempo llevas en el servidor?", inline: false },
+          { name: "⚠️ Sanciones administrativas", value: "¿Tienes alguna sanción grave?", inline: false },
+          { name: "💪 Cualidades y puntos fuertes", value: "Describe tus fortalezas", inline: false },
+          { name: "❌ Defectos y puntos débiles", value: "Describe tus debilidades", inline: false },
+          { name: "⏰ Disponibilidad horaria", value: "Horario en el que puedes estar activo", inline: false },
+          { name: "🎮 URL de Steam", value: "Link a tu cuenta de Steam", inline: false }
+        );
+        break;
+
+      case "pck":
+        embed.addFields(
+          { name: "🆔 Nombre IC", value: "Tu nombre dentro del rol", inline: false },
+          { name: "💀 Motivos para hacer CK", value: "Explica por qué deseas realizar CK", inline: false },
+          { name: "🎭 Rol posterior", value: "Rol que vas a desempeñar después de la muerte de este", inline: false },
+          { name: "💡 Otros detalles", value: "Cualquier otra información que quieras agregar sobre tu CK", inline: false }
+        );
+        break;
+
+      case "pstreamer":
+        embed.addFields(
+          { name: "🧑‍💻 Nombre OOC", value: "Tu nombre fuera del rol", inline: false },
+          { name: "🎂 Edad OOC", value: "Tu edad real", inline: false },
+          { name: "⏱️ Horas roleadas en FiveM", value: "Cantidad de horas roleadas", inline: false },
+          { name: "⏳ Tiempo en el servidor", value: "¿Cuánto tiempo llevas en el servidor?", inline: false },
+          { name: "🎮 URL de Steam", value: "Link a tu cuenta de Steam", inline: false },
+          { name: "📺 Link de la red social", value: "Red social donde vas a streamear el servidor", inline: false }
+        );
+        break;
+    }
+
+    // Finalmente enviar el embed
+    await interaction.editReply({ embeds: [embed] });
+
+  } catch (err) {
+    console.error("❌ Error en comando de pautas:", err);
+    if (interaction.deferred) {
+      interaction.editReply({ content: "⚠️ Ocurrió un error al mostrar las pautas." }).catch(() => {});
+    } else {
+      interaction.reply({ content: "⚠️ Ocurrió un error al mostrar las pautas.", ephemeral: true }).catch(() => {});
+    }
+  }
+
+  return; // Evita que se siga ejecutando código que no corresponde
+}
     // ---- Setup Soporte ---- //
     if (interaction.isChatInputCommand() && interaction.commandName === "setup-soporte") {
       const embed = new EmbedBuilder()
