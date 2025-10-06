@@ -326,43 +326,97 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     // ------------------- Comandos de pautas ------------------- //
-    if (interaction.isChatInputCommand()) {
-      const commandName = interaction.commandName;
-      const allowedCommands = ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"];
-      if (allowedCommands.includes(commandName)) {
-        const embed = new EmbedBuilder()
-          .setTitle(`📌 Pautas para ${commandName.replace("p", "").toUpperCase()}`)
-          .setColor("Purple")
-          .setFooter({ text: "UNITY CITY RP - Postulación" })
-          .setTimestamp();
+if (interaction.isChatInputCommand()) {
+  const commandName = interaction.commandName;
+  const allowedCommands = ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"];
+  if (allowedCommands.includes(commandName)) {
+    const embed = new EmbedBuilder()
+      .setTitle(`📌 Pautas para ${commandName.replace("p", "").toUpperCase()}`)
+      .setColor("Purple")
+      .setFooter({ text: "UNITY CITY RP - Postulación" })
+      .setTimestamp();
 
-        switch (commandName) {
-          case "pilegales":
-            embed.addFields(
-              { name: "Formato", value: "PDF OBLIGATORIO", inline: false },
-              { name: "Origen de la banda", value: "Describe el origen de la banda.", inline: false },
-              { name: "Historia y expansión", value: "Explica la historia y expansión de la banda.", inline: false },
-              { name: "Estructura y símbolos", value: "Detalla la estructura y símbolos que representen la banda.", inline: false },
-              { name: "Personalidad y reputación", value: "Describe la personalidad y reputación.", inline: false },
-              { name: "Aportación al servidor", value: "Qué vais a aportar y cómo fomentaréis el rol.", inline: false },
-              { name: "Disponibilidad", value: "Disponibilidad horaria de los miembros y planes de progresión.", inline: false },
-              { name: "Ubicación", value: "Foto de la ubicación del barrio.", inline: false },
-              { name: "Integrantes", value: "Lista de integrantes.", inline: false },
-              { name: "Grafiti", value: "Boceto o foto del grafiti.", inline: false }
-            );
-            break;
-          case "pnegocios":
-            embed.setDescription("Aquí van las pautas para negocios...");
-            break;
+    switch (commandName) {
+      case "pilegales":
+        embed.addFields(
+          { name: "📝 Formato", value: "PDF OBLIGATORIO", inline: false },
+          { name: "🌍 Origen de la banda", value: "Describe el origen de la banda.", inline: false },
+          { name: "📖 Historia y expansión", value: "Explica la historia y expansión de la banda.", inline: false },
+          { name: "🏛️ Estructura y símbolos", value: "Detalla la estructura y símbolos que representen la banda.", inline: false },
+          { name: "😎 Personalidad y reputación", value: "Describe la personalidad y reputación.", inline: false },
+          { name: "🎯 Aportación al servidor", value: "Qué vais a aportar y cómo fomentaréis el rol.", inline: false },
+          { name: "⏰ Disponibilidad", value: "Disponibilidad horaria de los miembros y planes de progresión.", inline: false },
+          { name: "📍 Ubicación", value: "Foto de la ubicación del barrio.", inline: false },
+          { name: "👥 Integrantes", value: "Lista de integrantes.", inline: false },
+          { name: "🎨 Grafiti", value: "Boceto o foto del grafiti.", inline: false }
+        );
+        break;
+         case "pnegocios":
+ embed.setTitle("📌 Pautas para NEGOCIOS")
+       .setColor("Purple")
+       .setFooter({ text: "UNITY CITY RP - Postulación" })
+       .setTimestamp()
+       .setDescription("💡 Aquí van las pautas para postular a un negocio. ¡Sé creativo y original! 🎉");
+
+  embed.addFields(
+    { name: "🏪 Nombre del local", value: "Escribe el nombre de tu negocio.", inline: false },
+    { name: "📝 Motivo", value: "Explica por qué quieres postular a este negocio.", inline: false },
+    { name: "👥 Empleados", value: "Indica los empleados o miembros que tendrán rol en el local.", inline: false },
+    { name: "📜 Normativa del local", value: "Describe las reglas y normativa que seguirá tu local.", inline: false },
+    { name: "💡 Ideas para el negocio", value: "Comparte ideas creativas para tu negocio.", inline: false },
+    { name: "🎉 Eventos", value: "Enumera los eventos que tienes pensados para realizar.", inline: false },
+    { name: "⚠️ Recordatorio", value: "Recuerda ser creativo y tener buenas ideas. ¡Suerte! 🍀", inline: false }
+  );
+break;
           case "pstaff":
-            embed.setDescription("Aquí van las pautas para staff...");
-            break;
+  embed.setTitle("📌 Pautas para STAFF")
+       .setColor("Purple")
+       .setFooter({ text: "UNITY CITY RP - Postulación" })
+       .setTimestamp()
+       .setDescription("💼 Aquí van las pautas para postular al Staff de UNITY CITY RP. Sé honesto y detallado! ✨");
+
+  embed.addFields(
+    { name: "📝 Nombre OOC", value: "Escribe tu nombre fuera de rol.", inline: false },
+    { name: "🎂 Edad OOC", value: "Indica tu edad real.", inline: false },
+    { name: "⏳ Tiempo en el servidor", value: "¿Cuánto tiempo llevas en UNITY CITY RP?", inline: false },
+    { name: "⚠️ Sanciones administrativas", value: "¿Tienes alguna sanción grave? Responde con sinceridad.", inline: false },
+    { name: "❓ Tipo de sanción (si aplica)", value: "En caso de tener sanción, indica de qué tipo.", inline: false },
+    { name: "💪 Cualidades y puntos fuertes", value: "Describe tus habilidades y puntos fuertes como staff.", inline: false },
+    { name: "⚡ Defectos y puntos débiles", value: "Se honesto sobre tus debilidades.", inline: false },
+    { name: "🕒 Disponibilidad horaria", value: "Indica tus horarios disponibles para staff.", inline: false },
+    { name: "🎮 URL de Steam", value: "Comparte tu perfil de Steam.", inline: false }
+  );
+break;
           case "pck":
-            embed.setDescription("Aquí van las pautas para CK...");
-            break;
-          case "pstreamer":
-            embed.setDescription("Aquí van las pautas para streamers...");
-            break;
+  embed.setTitle("📌 Pautas para CK")
+       .setColor("Purple")
+       .setFooter({ text: "UNITY CITY RP - Postulación CK" })
+       .setTimestamp()
+       .setDescription("💀 Aquí van las pautas para postular un CK en UNITY CITY RP. Sé claro y detallado en tus motivos.");
+
+  embed.addFields(
+    { name: "🆔 Nombre IC", value: "Indica el nombre de tu personaje en rol.", inline: false },
+    { name: "⚔️ Motivos para hacer CK", value: "Explica claramente las razones para realizar el CK.", inline: false },
+    { name: "🎭 Rol después de la muerte", value: "Describe el nuevo personaje o rol que vas a desempeñar después de la muerte de este.", inline: false },
+    { name: "📜 Historia breve del personaje", value: "Escribe un resumen de la historia de tu personaje.", inline: false },
+  );
+break;
+case "pstreamer":
+  embed.setTitle("📌 Pautas para STREAMER")
+       .setColor("Purple")
+       .setFooter({ text: "UNITY CITY RP - Postulación" })
+       .setTimestamp()
+       .setDescription("🎥 Aquí van las pautas para postular como Streamer de UNITY CITY RP. Sé creativo y profesional! ✨");
+
+  embed.addFields(
+    { name: "📝 Nombre OOC", value: "Escribe tu nombre fuera de rol.", inline: false },
+    { name: "🎂 Edad OOC", value: "Indica tu edad real.", inline: false },
+    { name: "⏱ Horas roleadas en FiveM", value: "Cantidad de horas roleadas en el servidor.", inline: false },
+    { name: "⏳ Tiempo en el servidor", value: "¿Cuánto tiempo llevas en UNITY CITY RP?", inline: false },
+    { name: "🎮 URL de Steam", value: "Comparte tu perfil de Steam.", inline: false },
+    { name: "🌐 Link de la red social", value: "Comparte el link de la red donde vas a streamear el servidor.", inline: false }
+  );
+break;
         }
 
         await interaction.reply({ embeds: [embed], ephemeral: false });
