@@ -388,20 +388,17 @@ client.on("guildMemberAdd", async (member) => {
 /////////////////////////////////////////////////
 
 // ------------------- Comandos de pautas ------------------- //
-// ------------------- Comandos de pautas ------------------- //
 if (interaction.isChatInputCommand()) {
   const commandName = interaction.commandName;
   const allowedCommands = ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"];
   if (!allowedCommands.includes(commandName)) return;
 
-  // Crear embed
   const embed = new EmbedBuilder()
     .setTitle(`📌 Pautas para ${commandName.replace("p", "").toUpperCase()}`)
     .setColor("Purple")
     .setFooter({ text: "UNITY CITY RP - Postulación" })
     .setTimestamp();
 
-  // Agregar campos según el comando
   switch (commandName) {
     case "pilegales":
       embed.addFields(
@@ -418,7 +415,7 @@ if (interaction.isChatInputCommand()) {
       );
       break;
     case "pnegocios":
-      embed.setDescription("Aquí van las pautas para negocios..."); 
+      embed.setDescription("Aquí van las pautas para negocios...");
       break;
     case "pstaff":
       embed.setDescription("Aquí van las pautas para staff...");
@@ -432,7 +429,8 @@ if (interaction.isChatInputCommand()) {
   }
 
   await interaction.reply({ embeds: [embed], ephemeral: false });
-}
+} 
+}); 
 
 // ------------------- Login ------------------- //
 client.login(process.env.TOKEN)
