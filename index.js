@@ -107,16 +107,11 @@ client.on("ready", async () => {
 
   // Registrar comandos slash
   const commands = [
-    new SlashCommandBuilder()
-      .setName("setup-soporte")
-      .setDescription("Configura el sistema de soporte."),
+    new SlashCommandBuilder().setName("setup-soporte").setDescription("Configura el sistema de soporte."),
     new SlashCommandBuilder()
       .setName("reset-whitelist")
-      .setDescription("Resetea la whitelist de un usuario para que pueda volver a hacerla.")
-      .addUserOption(option =>
-        option.setName("usuario")
-          .setDescription("Usuario al que se le resetea la whitelist.")
-          .setRequired(true)),
+      .setDescription("Resetea la whitelist de un usuario.")
+      .addUserOption(option => option.setName("usuario").setDescription("Usuario a resetear").setRequired(true)),
     new SlashCommandBuilder().setName("pilegales").setDescription("Muestra pautas legales."),
     new SlashCommandBuilder().setName("pnegocios").setDescription("Muestra pautas de negocios."),
     new SlashCommandBuilder().setName("pstaff").setDescription("Muestra pautas de staff."),
@@ -126,11 +121,8 @@ client.on("ready", async () => {
 
   const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
   try {
-const GUILD_ID = "821091789325729803"; 
-await rest.put(
-  Routes.applicationGuildCommands(client.user.id, GUILD_ID),
-  { body: commands }
-);
+    const GUILD_ID = "821091789325729803"; 
+    await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commands });
     console.log("✅ Comandos registrados correctamente.");
   } catch (err) {
     console.error("❌ Error al registrar comandos:", err);
@@ -148,7 +140,7 @@ client.on("interactionCreate", async (interaction) => {
       const member = await guild.members.fetch(interaction.user.id);
       const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
       if (!allowedRoles.some(role => member.roles.cache.has(role))) {
-        return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: "❌ No tienes permiso.", flags: MessageFlags.Ephemeral });
       }
 
       const target = interaction.options.getUser("usuario");
@@ -159,7 +151,7 @@ client.on("interactionCreate", async (interaction) => {
 
       const embedReset = new EmbedBuilder()
         .setTitle("♻️ Whitelist Reseteada")
-        .setDescription(`✅ Se ha reseteado la whitelist de **${target.username}**.\nAhora puede volver a intentarla sin esperar.`)
+        .setDescription(`✅ Se ha reseteado la whitelist de **${target.username}**.`)
         .setColor("Green")
         .setThumbnail(target.displayAvatarURL({ dynamic: true }))
         .setFooter({ text: `Reseteado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
@@ -175,7 +167,7 @@ client.on("interactionCreate", async (interaction) => {
           .addFields(
             { name: "👮‍♂️ Staff:", value: `${interaction.user.tag}`, inline: true },
             { name: "🎯 Usuario:", value: `${target.tag}`, inline: true },
-            { name: "🕒 Fecha:", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
+            { name: "🕒 Fecha:", value: `<t:${Math.floor(Date.now() / 1000)}:F>` }
           )
           .setColor("Orange")
           .setThumbnail(target.displayAvatarURL({ dynamic: true }))
@@ -220,9 +212,7 @@ client.on("interactionCreate", async (interaction) => {
         facciones: { cat: "1423747506382311485", label: "🏢 Ticket de Facciones" },
         postulacion: { cat: "1423747604495466536", label: "📋 Ticket de Postulación" }
       };
-
       const { cat, label } = ticketMap[interaction.values[0]];
-
       const channel = await guild.channels.create({
         name: `${interaction.values[0]}-${interaction.user.username}`,
         type: 0,
@@ -256,342 +246,86 @@ client.on("interactionCreate", async (interaction) => {
       await interaction.reply({ content: `✅ Ticket creado: ${channel}`, flags: MessageFlags.Ephemeral });
     }
 
-    // ---- Cerrar ticket ---- //
-    if (interaction.isButton() && interaction.customId === "cerrar_ticket") {
-      await interaction.reply({ content: "⏳ Cerrando ticket en 5 segundos...", flags: MessageFlags.Ephemeral });
-      setTimeout(() => interaction.channel?.delete().catch(() => {}), 5000);
-    }
+    // ---- Botones ---- //
+    if (interaction.isButton()) {
+      const customId = interaction.customId;
 
-    // ---- Botón Whitelist ---- //
-    if (interaction.isButton() && interaction.customId === "whitelist") {
-      const userId = interaction.user.id;
-      const now = Date.now();
-      if (cooldowns.has(userId) && now - cooldowns.get(userId) < COOLDOWN_HORAS * 60 * 60 * 1000) {
-        const remaining = COOLDOWN_HORAS * 60 * 60 * 1000 - (now - cooldowns.get(userId));
-        const hours = Math.floor(remaining / (1000 * 60 * 60));
-        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-        return interaction.reply({
-          content: `⚠️ Ya hiciste un intento de whitelist. Debes esperar ${hours}h ${minutes}m antes de intentarlo de nuevo.`,
-          flags: MessageFlags.Ephemeral
-        });
-      }
-      cooldowns.set(userId, now);
-
-      const channel = await guild.channels.create({
-        name: `whitelist-${interaction.user.username}`,
-        type: 0,
-        parent: WHITELIST_CATEGORY_ID,
-        permissionOverwrites: [
-          { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-        ],
-      });
-
-      await interaction.reply({ content: `✅ Ticket de whitelist creado: ${channel}`, flags: MessageFlags.Ephemeral });
-
-      let puntaje = 0;
-      for (let i = 0; i < preguntas.length; i++) {
-        const respuesta = await hacerPregunta(channel, interaction.user, preguntas[i], i, preguntas.length);
-        if (respuesta && respuesta === preguntas[i].respuesta) puntaje++;
+      // Cerrar ticket
+      if (customId === "cerrar_ticket") {
+        await interaction.reply({ content: "⏳ Cerrando ticket en 5 segundos...", flags: MessageFlags.Ephemeral });
+        setTimeout(() => interaction.channel?.delete().catch(() => {}), 5000);
       }
 
-      const aprobado = puntaje >= 9;
-      const resultadoEmbed = new EmbedBuilder()
-        .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
-        .setDescription(aprobado
-          ? `🎉 ¡Felicidades ${interaction.user}, has aprobado la whitelist!\n**Puntaje:** ${puntaje}/${preguntas.length}`
-          : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
-        .setColor(aprobado ? "Green" : "Red");
-
-      const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
-      if (logChannel) logChannel.send({ embeds: [resultadoEmbed] });
-      await channel.send({ embeds: [resultadoEmbed] });
-
-      if (aprobado) {
-        try {
-          const member = await guild.members.fetch(interaction.user.id);
-          await member.roles.add(ROLES.whitelist);
-          await member.roles.remove(ROLES.sinWhitelist);
-          await channel.send("🎉 ¡Has recibido el rol de **Whitelist**!");
-        } catch (err) {
-          console.error("❌ Error al asignar rol:", err);
-          await channel.send("⚠️ Error al asignar rol, avisa a un staff.");
+      // Whitelist
+      if (customId === "whitelist") {
+        const userId = interaction.user.id;
+        const now = Date.now();
+        if (cooldowns.has(userId) && now - cooldowns.get(userId) < COOLDOWN_HORAS * 60 * 60 * 1000) {
+          const remaining = COOLDOWN_HORAS * 60 * 60 * 1000 - (now - cooldowns.get(userId));
+          const hours = Math.floor(remaining / (1000 * 60 * 60));
+          const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+          return interaction.reply({
+            content: `⚠️ Ya hiciste un intento de whitelist. Espera ${hours}h ${minutes}m.`,
+            flags: MessageFlags.Ephemeral
+          });
         }
-      }
+        cooldowns.set(userId, now);
 
-      setTimeout(() => channel.delete().catch(() => {}), 30000);
-    }
-
-    // ------------------- Comandos de pautas ------------------- //
-    if (interaction.isChatInputCommand()) {
-      const commandName = interaction.commandName;
-      const allowedCommands = ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"];
-      const member = await guild.members.fetch(interaction.user.id);
-      const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
-      if (!allowedRoles.some(role => member.roles.cache.has(role))) {
-        return interaction.reply({
-          content: "❌ No tienes permiso para usar este comando. Solo Staff puede usarlo.",
-          ephemeral: true
+        const channel = await guild.channels.create({
+          name: `whitelist-${interaction.user.username}`,
+          type: 0,
+          parent: WHITELIST_CATEGORY_ID,
+          permissionOverwrites: [
+            { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+            { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+            { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+            { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+            { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+          ],
         });
+
+        await interaction.reply({ content: `✅ Ticket de whitelist creado: ${channel}`, flags: MessageFlags.Ephemeral });
+
+        let puntaje = 0;
+        for (let i = 0; i < preguntas.length; i++) {
+          const respuesta = await hacerPregunta(channel, interaction.user, preguntas[i], i, preguntas.length);
+          if (respuesta && respuesta === preguntas[i].respuesta) puntaje++;
+        }
+
+        const aprobado = puntaje >= 9;
+        const resultadoEmbed = new EmbedBuilder()
+          .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
+          .setDescription(aprobado
+            ? `🎉 ¡Felicidades ${interaction.user}, has aprobado la whitelist!\n**Puntaje:** ${puntaje}/${preguntas.length}`
+            : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
+          .setColor(aprobado ? "Green" : "Red");
+
+        const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+        if (logChannel) logChannel.send({ embeds: [resultadoEmbed] });
+        await channel.send({ embeds: [resultadoEmbed] });
+
+        if (aprobado) {
+          try {
+            const member = await guild.members.fetch(interaction.user.id);
+            await member.roles.add(ROLES.whitelist);
+            await member.roles.remove(ROLES.sinWhitelist);
+            await channel.send("🎉 ¡Has recibido el rol de **Whitelist**!");
+          } catch (err) {
+            console.error("❌ Error al asignar rol:", err);
+            await channel.send("⚠️ Error al asignar rol, avisa a un staff.");
+          }
+        }
+
+        setTimeout(() => channel.delete().catch(() => {}), 30000);
       }
-
-      if (!allowedCommands.includes(commandName)) return;
-
-      const embed = new EmbedBuilder()
-        .setTitle(`📌 Pautas para ${commandName.replace("p", "").toUpperCase()}`)
-        .setColor("Purple")
-        .setFooter({ text: "UNITY CITY RP - Postulación" })
-        .setTimestamp();
-
-      switch (commandName) {
-        case "pilegales":
-          embed.addFields(
-            { name: "📝 Formato", value: "PDF OBLIGATORIO", inline: false },
-            { name: "🏴 Origen de la banda", value: "Describe el origen de la banda.", inline: false },
-            { name: "📜 Historia y expansión", value: "Explica la historia y expansión de la banda.", inline: false },
-            { name: "⚔️ Estructura y símbolos", value: "Detalla la estructura y símbolos que representen la banda.", inline: false },
-            { name: "💎 Personalidad y reputación", value: "Describe la personalidad y reputación.", inline: false },
-            { name: "🎯 Aportación al servidor", value: "Qué vais a aportar y cómo fomentaréis el rol.", inline: false },
-            { name: "⏰ Disponibilidad", value: "Disponibilidad horaria de los miembros y planes de progresión.", inline: false },
-            { name: "📍 Ubicación", value: "Foto de la ubicación del barrio.", inline: false },
-            { name: "👥 Integrantes", value: "Lista de integrantes.", inline: false },
-            { name: "🎨 Grafiti", value: "Boceto o foto del grafiti.", inline: false }
-          );
-          break;
-        case "pnegocios":
-          embed.addFields(
-            { name: "🏪 Nombre del local", value: "Motivo por el que quieres postular a ese negocio", inline: false },
-            { name: "👥 Empleados", value: "Lista de empleados", inline: false },
-            { name: "📜 Normativa del local", value: "Reglas y normas internas", inline: false },
-            { name: "💡 Ideas para el negocio", value: "Ideas creativas para el negocio", inline: false },
-            { name: "🎉 Eventos planeados", value: "Eventos que tienes pensados para realizar", inline: false },
-            { name: "✨ Consejo", value: "Recordar ser creativos y tener buenas ideas! SUERTE!!", inline: false }
-          );
-          break;
-        case "pstaff":
-          embed.addFields(
-            { name: "🧑‍💼 Nombre OOC", value: "Tu nombre fuera del rol", inline: false },
-            { name: "🎂 Edad OOC", value: "Tu edad real", inline: false },
-            { name: "⏳ Tiempo en el servidor", value: "¿Cuánto tiempo llevas en el servidor?", inline: false },
-            { name: "⚠️ Sanciones administrativas", value: "¿Tienes alguna sanción grave?", inline: false },
-            { name: "💪 Cualidades y puntos fuertes", value: "Describe tus fortalezas", inline: false },
-            { name: "❌ Defectos y puntos débiles", value: "Describe tus debilidades", inline: false },
-            { name: "⏰ Disponibilidad horaria", value: "Horario en el que puedes estar activo", inline: false },
-            { name: "🎮 URL de Steam", value: "Link a tu cuenta de Steam", inline: false }
-          );
-          break;
-        case "pck":
-          embed.addFields(
-            { name: "🆔 Nombre IC", value: "Tu nombre dentro del rol", inline: false },
-            { name: "💀 Motivos para hacer CK", value: "Explica por qué deseas realizar CK", inline: false },
-            { name: "🎭 Rol posterior", value: "Rol que vas a desempeñar después de la muerte de este", inline: false },
-            { name: "💡 Otros detalles", value: "Cualquier otra información que quieras agregar sobre tu CK", inline: false }
-          );
-          break;
-        case "pstreamer":
-          embed.addFields(
-            { name: "🧑‍💻 Nombre OOC", value: "Tu nombre fuera del rol", inline: false },
-            { name: "🎂 Edad OOC", value: "Tu edad real", inline: false },
-            { name: "⏱️ Horas roleadas en FiveM", value: "Cantidad de horas roleadas", inline: false },
-            { name: "⏳ Tiempo en el servidor", value: "¿Cuánto tiempo llevas en el servidor?", inline: false },
-            { name: "🎮 URL de Steam", value: "Link a tu cuenta de Steam", inline: false },
-            { name: "📺 Link de la red social", value: "Red social donde vas a streamear el servidor", inline: false }
-          );
-          break;
-      }
-
-      await interaction.reply({ embeds: [embed], ephemeral: false });
     }
 
   } catch (error) {
     console.error("❌ Error en interactionCreate:", error);
     if (interaction.replied || interaction.deferred) {
-      interaction.followUp({
-        content: "⚠️ Ocurrió un error al procesar tu interacción.",
-        flags: MessageFlags.Ephemeral
-      }).catch(() => {});
+      interaction.followUp({ content: "⚠️ Ocurrió un error.", flags: MessageFlags.Ephemeral }).catch(() => {});
     } else {
-      interaction.reply({
-        content: "⚠️ Ocurrió un error al procesar tu interacción.",
-        flags: MessageFlags.Ephemeral
-      }).catch(() => {});
-    }
-  }
-});
-
-    // ---- Cerrar ticket ----
-    if (interaction.isButton() && interaction.customId === "cerrar_ticket") {
-      await interaction.reply({ content: "⏳ Cerrando ticket en 5 segundos...", flags: MessageFlags.Ephemeral });
-      setTimeout(() => interaction.channel?.delete().catch(() => {}), 5000);
-    }
-
-    // ---- Botón Whitelist ----
-    if (interaction.isButton() && interaction.customId === "whitelist") {
-      const userId = interaction.user.id;
-      const now = Date.now();
-      if (cooldowns.has(userId) && now - cooldowns.get(userId) < COOLDOWN_HORAS * 60 * 60 * 1000) {
-        const remaining = COOLDOWN_HORAS * 60 * 60 * 1000 - (now - cooldowns.get(userId));
-        const hours = Math.floor(remaining / (1000 * 60 * 60));
-        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-        return interaction.reply({
-          content: `⚠️ Ya hiciste un intento de whitelist. Debes esperar ${hours}h ${minutes}m antes de intentarlo de nuevo.`,
-          flags: MessageFlags.Ephemeral
-        });
-      }
-      cooldowns.set(userId, now);
-
-      const channel = await guild.channels.create({
-        name: `whitelist-${interaction.user.username}`,
-        type: 0,
-        parent: WHITELIST_CATEGORY_ID,
-        permissionOverwrites: [
-          { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-        ],
-      });
-
-      await interaction.reply({ content: `✅ Ticket de whitelist creado: ${channel}`, flags: MessageFlags.Ephemeral });
-
-      let puntaje = 0;
-      for (let i = 0; i < preguntas.length; i++) {
-        const respuesta = await hacerPregunta(channel, interaction.user, preguntas[i], i, preguntas.length);
-        if (respuesta && respuesta === preguntas[i].respuesta) puntaje++;
-      }
-
-      const aprobado = puntaje >= 9;
-      const resultadoEmbed = new EmbedBuilder()
-        .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
-        .setDescription(aprobado
-          ? `🎉 ¡Felicidades ${interaction.user}, has aprobado la whitelist!\n**Puntaje:** ${puntaje}/${preguntas.length}`
-          : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
-        .setColor(aprobado ? "Green" : "Red");
-
-      const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
-      if (logChannel) logChannel.send({ embeds: [resultadoEmbed] });
-      await channel.send({ embeds: [resultadoEmbed] });
-
-      if (aprobado) {
-        try {
-          const member = await guild.members.fetch(interaction.user.id);
-          await member.roles.add(ROLES.whitelist);
-          await member.roles.remove(ROLES.sinWhitelist);
-          await channel.send("🎉 ¡Has recibido el rol de **Whitelist**!");
-        } catch (err) {
-          console.error("❌ Error al asignar rol:", err);
-          await channel.send("⚠️ Error al asignar rol, avisa a un staff.");
-        }
-      }
-
-      setTimeout(() => channel.delete().catch(() => {}), 30000);
-    }
-
-    // ------------------- Comandos de pautas ------------------- //
-if (interaction.isChatInputCommand()) {
-  const commandName = interaction.commandName;
-  const allowedCommands = ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"]; // Todos son solo para staff
-
-  // Verificación de roles
-  const member = await interaction.guild.members.fetch(interaction.user.id);
-  const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
-  if (!allowedRoles.some(role => member.roles.cache.has(role))) {
-    return interaction.reply({
-      content: "❌ No tienes permiso para usar este comando. Solo Staff puede usarlo.",
-      ephemeral: true
-    });
-  }
-
-  if (!allowedCommands.includes(commandName)) return;
-
-  const embed = new EmbedBuilder()
-    .setTitle(`📌 Pautas para ${commandName.replace("p", "").toUpperCase()}`)
-    .setColor("Purple")
-    .setFooter({ text: "UNITY CITY RP - Postulación" })
-    .setTimestamp();
-
-  switch (commandName) {
-    case "pilegales":
-      embed.addFields(
-        { name: "📝 Formato", value: "PDF OBLIGATORIO", inline: false },
-        { name: "🏴 Origen de la banda", value: "Describe el origen de la banda.", inline: false },
-        { name: "📜 Historia y expansión", value: "Explica la historia y expansión de la banda.", inline: false },
-        { name: "⚔️ Estructura y símbolos", value: "Detalla la estructura y símbolos que representen la banda.", inline: false },
-        { name: "💎 Personalidad y reputación", value: "Describe la personalidad y reputación.", inline: false },
-        { name: "🎯 Aportación al servidor", value: "Qué vais a aportar y cómo fomentaréis el rol.", inline: false },
-        { name: "⏰ Disponibilidad", value: "Disponibilidad horaria de los miembros y planes de progresión.", inline: false },
-        { name: "📍 Ubicación", value: "Foto de la ubicación del barrio.", inline: false },
-        { name: "👥 Integrantes", value: "Lista de integrantes.", inline: false },
-        { name: "🎨 Grafiti", value: "Boceto o foto del grafiti.", inline: false }
-      );
-      break;
-
-    case "pnegocios":
-      embed.addFields(
-        { name: "🏪 Nombre del local", value: "Motivo por el que quieres postular a ese negocio", inline: false },
-        { name: "👥 Empleados", value: "Lista de empleados", inline: false },
-        { name: "📜 Normativa del local", value: "Reglas y normas internas", inline: false },
-        { name: "💡 Ideas para el negocio", value: "Ideas creativas para el negocio", inline: false },
-        { name: "🎉 Eventos planeados", value: "Eventos que tienes pensados para realizar", inline: false },
-        { name: "✨ Consejo", value: "Recordar ser creativos y tener buenas ideas! SUERTE!!", inline: false }
-      );
-      break;
-
-    case "pstaff":
-      embed.addFields(
-        { name: "🧑‍💼 Nombre OOC", value: "Tu nombre fuera del rol", inline: false },
-        { name: "🎂 Edad OOC", value: "Tu edad real", inline: false },
-        { name: "⏳ Tiempo en el servidor", value: "¿Cuánto tiempo llevas en el servidor?", inline: false },
-        { name: "⚠️ Sanciones administrativas", value: "¿Tienes alguna sanción grave?", inline: false },
-        { name: "💪 Cualidades y puntos fuertes", value: "Describe tus fortalezas", inline: false },
-        { name: "❌ Defectos y puntos débiles", value: "Describe tus debilidades", inline: false },
-        { name: "⏰ Disponibilidad horaria", value: "Horario en el que puedes estar activo", inline: false },
-        { name: "🎮 URL de Steam", value: "Link a tu cuenta de Steam", inline: false }
-      );
-      break;
-
-    case "pck":
-      embed.addFields(
-        { name: "🆔 Nombre IC", value: "Tu nombre dentro del rol", inline: false },
-        { name: "💀 Motivos para hacer CK", value: "Explica por qué deseas realizar CK", inline: false },
-        { name: "🎭 Rol posterior", value: "Rol que vas a desempeñar después de la muerte de este", inline: false },
-        { name: "💡 Otros detalles", value: "Cualquier otra información que quieras agregar sobre tu CK", inline: false }
-      );
-      break;
-
-    case "pstreamer":
-      embed.addFields(
-        { name: "🧑‍💻 Nombre OOC", value: "Tu nombre fuera del rol", inline: false },
-        { name: "🎂 Edad OOC", value: "Tu edad real", inline: false },
-        { name: "⏱️ Horas roleadas en FiveM", value: "Cantidad de horas roleadas", inline: false },
-        { name: "⏳ Tiempo en el servidor", value: "¿Cuánto tiempo llevas en el servidor?", inline: false },
-        { name: "🎮 URL de Steam", value: "Link a tu cuenta de Steam", inline: false },
-        { name: "📺 Link de la red social", value: "Red social donde vas a streamear el servidor", inline: false }
-      );
-      break;
-  }
-
-  await interaction.reply({ embeds: [embed], ephemeral: false });
-}
-
-    }
-
-  } catch (error) {
-    console.error("❌ Error en interactionCreate:", error);
-    if (interaction.replied || interaction.deferred) {
-      interaction.followUp({
-        content: "⚠️ Ocurrió un error al procesar tu interacción.",
-        flags: MessageFlags.Ephemeral
-      }).catch(() => {});
-    } else {
-      interaction.reply({
-        content: "⚠️ Ocurrió un error al procesar tu interacción.",
-        flags: MessageFlags.Ephemeral
-      }).catch(() => {});
+      interaction.reply({ content: "⚠️ Ocurrió un error.", flags: MessageFlags.Ephemeral }).catch(() => {});
     }
   }
 });
@@ -618,17 +352,9 @@ client.on("guildMemberAdd", async (member) => {
 });
 
 // ------------------- Manejo global de errores ------------------- //
-process.on('exit', (code) => {
-  console.log(`⚠️ Proceso finalizado con código ${code}`);
-});
-
-process.on('uncaughtException', (err) => {
-  console.error('❌ Excepción no capturada:', err);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Promesa no manejada:', reason);
-});
+process.on('exit', (code) => console.log(`⚠️ Proceso finalizado con código ${code}`));
+process.on('uncaughtException', (err) => console.error('❌ Excepción no capturada:', err));
+process.on('unhandledRejection', (reason) => console.error('❌ Promesa no manejada:', reason));
 
 // ------------------- Login ------------------- //
 client.login(process.env.TOKEN)
