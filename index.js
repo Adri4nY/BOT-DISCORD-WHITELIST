@@ -61,45 +61,6 @@ if (!process.env.TOKEN) {
   console.log("🔑 TOKEN cargado correctamente.");
 }
 
-// ------------------- Evento Ready ------------------- //
-client.on("ready", async () => {
-  console.log(`✅ Bot iniciado como: ${client.user.tag}`);
-  client.user.setPresence({
-    activities: [{ name: "UNITY CITY 🎮", type: 0 }],
-    status: "online",
-  });
-
-  // ------------------- Registrar Comandos Slash ------------------- //
-  const commands = [
-    new SlashCommandBuilder()
-      .setName("setup-soporte")
-      .setDescription("Configura el sistema de soporte."),
-    new SlashCommandBuilder()
-      .setName("reset-whitelist")
-      .setDescription("Resetea la whitelist de un usuario para que pueda volver a hacerla.")
-      .addUserOption(option =>
-        option.setName("usuario")
-          .setDescription("Usuario al que se le resetea la whitelist.")
-          .setRequired(true)),
-    new SlashCommandBuilder().setName("pstaff").setDescription("Muestra pautas de staff"),
-    new SlashCommandBuilder().setName("pilegales").setDescription("Muestra pautas de legales"),
-    new SlashCommandBuilder().setName("pnegocios").setDescription("Muestra pautas de negocios"),
-    new SlashCommandBuilder().setName("pck").setDescription("Muestra pautas de CK"),
-    new SlashCommandBuilder().setName("pstreamer").setDescription("Muestra pautas de streamers"),
-  ].map(cmd => cmd.toJSON());
-
-  const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
-  try {
-    await rest.put(
-      Routes.applicationCommands(client.user.id),
-      { body: commands }
-    );
-    console.log("✅ Comandos registrados correctamente.");
-  } catch (err) {
-    console.error("❌ Error al registrar comandos:", err);
-  }
-});
-
 // ------------------- Función hacer pregunta ------------------- //
 async function hacerPregunta(channel, usuario, pregunta, index, total) {
   const row = new ActionRowBuilder().addComponents(
@@ -136,30 +97,63 @@ async function hacerPregunta(channel, usuario, pregunta, index, total) {
   });
 }
 
+// ------------------- Evento ClientReady ------------------- //
+client.on("ready", async () => {
+  console.log(`✅ Bot iniciado como: ${client.user.tag}`);
+  client.user.setPresence({
+    activities: [{ name: "UNITY CITY 🎮", type: 0 }],
+    status: "online",
+  });
+
+  // ------------------- Registrar Comandos Slash ------------------- //
+  const commands = [
+    new SlashCommandBuilder()
+      .setName("setup-soporte")
+      .setDescription("Configura el sistema de soporte."),
+    new SlashCommandBuilder()
+      .setName("reset-whitelist")
+      .setDescription("Resetea la whitelist de un usuario para que pueda volver a hacerla.")
+      .addUserOption(option =>
+        option.setName("usuario")
+          .setDescription("Usuario al que se le resetea la whitelist.")
+          .setRequired(true)),
+    new SlashCommandBuilder().setName("pilegales").setDescription("Muestra pautas legales."),
+    new SlashCommandBuilder().setName("pnegocios").setDescription("Muestra pautas de negocios."),
+    new SlashCommandBuilder().setName("pstaff").setDescription("Muestra pautas de staff."),
+    new SlashCommandBuilder().setName("pck").setDescription("Muestra pautas de CK."),
+    new SlashCommandBuilder().setName("pstreamer").setDescription("Muestra pautas de streamers."),
+  ].map(cmd => cmd.toJSON());
+
+  const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+  try {
+    await rest.put(
+      Routes.applicationCommands(client.user.id),
+      { body: commands }
+    );
+    console.log("✅ Comandos registrados correctamente.");
+  } catch (err) {
+    console.error("❌ Error al registrar comandos:", err);
+  }
+});
+
 // ------------------- Interacciones ------------------- //
 client.on("interactionCreate", async (interaction) => {
   try {
     const guild = interaction.guild;
     if (!guild) return;
 
-    // ------------------- /reset-whitelist ------------------- //
+    // ---- Comando /reset-whitelist ---- //
     if (interaction.isChatInputCommand() && interaction.commandName === "reset-whitelist") {
       const member = await guild.members.fetch(interaction.user.id);
       const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
-
       if (!allowedRoles.some(role => member.roles.cache.has(role))) {
-        return interaction.reply({
-          content: "❌ No tienes permiso para usar este comando.",
-          flags: MessageFlags.Ephemeral
-        });
+        return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", flags: MessageFlags.Ephemeral });
       }
-
       const target = interaction.options.getUser("usuario");
       if (!target) return interaction.reply({ content: "⚠️ Usuario no válido.", flags: MessageFlags.Ephemeral });
       if (!cooldowns.has(target.id)) return interaction.reply({ content: `ℹ️ ${target.username} no tiene cooldown activo.`, flags: MessageFlags.Ephemeral });
 
       cooldowns.delete(target.id);
-
       const embedReset = new EmbedBuilder()
         .setTitle("♻️ Whitelist Reseteada")
         .setDescription(`✅ Se ha reseteado la whitelist de **${target.username}**.\nAhora puede volver a intentarla sin esperar.`)
@@ -184,11 +178,12 @@ client.on("interactionCreate", async (interaction) => {
           .setThumbnail(target.displayAvatarURL({ dynamic: true }))
           .setFooter({ text: "Sistema de Whitelist - UNITY CITY" })
           .setTimestamp();
+
         await logChannel.send({ embeds: [embedLog] });
       }
     }
 
-    // ------------------- /setup-soporte ------------------- //
+    // ---- Setup Soporte ----
     if (interaction.isChatInputCommand() && interaction.commandName === "setup-soporte") {
       const embed = new EmbedBuilder()
         .setTitle("🎫 Sistema de Tickets - UNITY CITY")
@@ -212,7 +207,7 @@ client.on("interactionCreate", async (interaction) => {
       await interaction.reply({ embeds: [embed], components: [row] });
     }
 
-    // ------------------- Tickets Select ------------------- //
+    // ---- Ticket Select ----
     if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
       const ticketMap = {
         soporte_general: { cat: SOPORTE_CATEGORY_ID, label: "🟢 Ticket de Soporte General" },
@@ -255,31 +250,31 @@ client.on("interactionCreate", async (interaction) => {
         allowedMentions: { roles: [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin] }
       });
 
-      await interaction.reply({ content: `✅ Ticket creado: ${channel}`, flags: MessageFlags.Ephemeral });
+      await interaction.reply({
+        content: `✅ Ticket creado: ${channel}`,
+        flags: MessageFlags.Ephemeral
+      });
     }
 
-    // ------------------- Cerrar ticket ------------------- //
+    // ---- Cerrar ticket ----
     if (interaction.isButton() && interaction.customId === "cerrar_ticket") {
       await interaction.reply({ content: "⏳ Cerrando ticket en 5 segundos...", flags: MessageFlags.Ephemeral });
       setTimeout(() => interaction.channel?.delete().catch(() => {}), 5000);
     }
 
-    // ------------------- Botón Whitelist ------------------- //
+    // ---- Botón Whitelist ----
     if (interaction.isButton() && interaction.customId === "whitelist") {
       const userId = interaction.user.id;
       const now = Date.now();
-
       if (cooldowns.has(userId) && now - cooldowns.get(userId) < COOLDOWN_HORAS * 60 * 60 * 1000) {
         const remaining = COOLDOWN_HORAS * 60 * 60 * 1000 - (now - cooldowns.get(userId));
         const hours = Math.floor(remaining / (1000 * 60 * 60));
         const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-
         return interaction.reply({
           content: `⚠️ Ya hiciste un intento de whitelist. Debes esperar ${hours}h ${minutes}m antes de intentarlo de nuevo.`,
           flags: MessageFlags.Ephemeral
         });
       }
-
       cooldowns.set(userId, now);
 
       const channel = await guild.channels.create({
@@ -328,6 +323,50 @@ client.on("interactionCreate", async (interaction) => {
       }
 
       setTimeout(() => channel.delete().catch(() => {}), 30000);
+    }
+
+    // ------------------- Comandos de pautas ------------------- //
+    if (interaction.isChatInputCommand()) {
+      const commandName = interaction.commandName;
+      const allowedCommands = ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"];
+      if (allowedCommands.includes(commandName)) {
+        const embed = new EmbedBuilder()
+          .setTitle(`📌 Pautas para ${commandName.replace("p", "").toUpperCase()}`)
+          .setColor("Purple")
+          .setFooter({ text: "UNITY CITY RP - Postulación" })
+          .setTimestamp();
+
+        switch (commandName) {
+          case "pilegales":
+            embed.addFields(
+              { name: "Formato", value: "PDF OBLIGATORIO", inline: false },
+              { name: "Origen de la banda", value: "Describe el origen de la banda.", inline: false },
+              { name: "Historia y expansión", value: "Explica la historia y expansión de la banda.", inline: false },
+              { name: "Estructura y símbolos", value: "Detalla la estructura y símbolos que representen la banda.", inline: false },
+              { name: "Personalidad y reputación", value: "Describe la personalidad y reputación.", inline: false },
+              { name: "Aportación al servidor", value: "Qué vais a aportar y cómo fomentaréis el rol.", inline: false },
+              { name: "Disponibilidad", value: "Disponibilidad horaria de los miembros y planes de progresión.", inline: false },
+              { name: "Ubicación", value: "Foto de la ubicación del barrio.", inline: false },
+              { name: "Integrantes", value: "Lista de integrantes.", inline: false },
+              { name: "Grafiti", value: "Boceto o foto del grafiti.", inline: false }
+            );
+            break;
+          case "pnegocios":
+            embed.setDescription("Aquí van las pautas para negocios...");
+            break;
+          case "pstaff":
+            embed.setDescription("Aquí van las pautas para staff...");
+            break;
+          case "pck":
+            embed.setDescription("Aquí van las pautas para CK...");
+            break;
+          case "pstreamer":
+            embed.setDescription("Aquí van las pautas para streamers...");
+            break;
+        }
+
+        await interaction.reply({ embeds: [embed], ephemeral: false });
+      }
     }
 
   } catch (error) {
