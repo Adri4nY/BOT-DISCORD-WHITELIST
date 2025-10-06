@@ -26,6 +26,7 @@ app.listen(PORT, () => console.log(`🌐 Servidor web activo en puerto ${PORT}`)
 // ------------------- Config ------------------- //
 const preguntas = JSON.parse(fs.readFileSync("preguntas.json", "utf8"));
 const LOG_CHANNEL_ID = "1422893357042110546";
+const RESET_LOG_CHANNEL_ID = "1424694967472754769";
 const WHITELIST_CATEGORY_ID = "1422897937427464203";
 const SOPORTE_CATEGORY_ID = "1422898157829881926";
 const COOLDOWN_HORAS = 6;
@@ -155,6 +156,26 @@ client.on("interactionCreate", async (interaction) => {
       interaction.reply({ content: `✅ Se ha reseteado la whitelist de ${target.username}. Ahora puede volver a intentarla sin esperar.`, ephemeral: true });
     }
 
+      // 🧾 Log al canal de resets
+      const logChannel = guild.channels.cache.get(RESET_LOG_CHANNEL_ID);
+      if (logChannel) {
+        const embedLog = new EmbedBuilder()
+          .setTitle("🧹 Whitelist Reseteada")
+          .setDescription(`El usuario **${target.tag}** ha sido reseteado.`)
+          .addFields(
+            { name: "👮‍♂️ Staff:", value: `${interaction.user.tag}`, inline: true },
+            { name: "🎯 Usuario:", value: `${target.tag}`, inline: true },
+            { name: "🕒 Fecha:", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
+          )
+          .setColor("Orange")
+          .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+          .setFooter({ text: "Sistema de Whitelist - UNITY CITY" })
+          .setTimestamp();
+
+        await logChannel.send({ embeds: [embedLog] });
+      }
+    }
+    
     // ---- Setup Soporte ----
     if (interaction.isChatInputCommand() && interaction.commandName === "setup-soporte") {
       const embed = new EmbedBuilder()
