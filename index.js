@@ -388,6 +388,7 @@ client.on("guildMemberAdd", async (member) => {
 /////////////////////////////////////////////////
 
 // ------------------- Comandos de pautas ------------------- //
+// ------------------- Comandos de pautas ------------------- //
 if (interaction.isChatInputCommand()) {
   const commandName = interaction.commandName;
   const allowedCommands = ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"];
@@ -416,6 +417,22 @@ if (interaction.isChatInputCommand()) {
         { name: "Grafiti", value: "Boceto o foto del grafiti.", inline: false }
       );
       break;
+    case "pnegocios":
+      embed.setDescription("Aquí van las pautas para negocios..."); 
+      break;
+    case "pstaff":
+      embed.setDescription("Aquí van las pautas para staff...");
+      break;
+    case "pck":
+      embed.setDescription("Aquí van las pautas para CK...");
+      break;
+    case "pstreamer":
+      embed.setDescription("Aquí van las pautas para streamers...");
+      break;
+  }
+
+  await interaction.reply({ embeds: [embed], ephemeral: false });
+}
 
 // ------------------- Login ------------------- //
 client.login(process.env.TOKEN)
