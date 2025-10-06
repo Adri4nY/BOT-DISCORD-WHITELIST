@@ -452,6 +452,19 @@ client.on("guildMemberAdd", async (member) => {
   }
 });
 
+// ------------------- Manejo global de errores ------------------- //
+process.on('exit', (code) => {
+  console.log(`⚠️ Proceso finalizado con código ${code}`);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('❌ Excepción no capturada:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Promesa no manejada:', reason);
+});
+
 // ------------------- Login ------------------- //
 client.login(process.env.TOKEN)
   .then(() => console.log("🔓 Login exitoso. Bot conectado a Discord."))
