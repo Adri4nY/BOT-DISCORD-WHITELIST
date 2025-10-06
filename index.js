@@ -371,15 +371,13 @@ client.on("guildMemberAdd", async (member) => {
     const channel = member.guild.channels.cache.get(canalBienvenida);
     if (!channel) return;
 
-    const embed = new EmbedBuilder()
-      .setTitle("🎉 ¡Nuevo miembro en **UNITY CITY**!
-
-")
-      .setDescription(`Bienvenido/a ${member} a **${member.guild.name}** 🚀\n👉 No olvides leer las normas y realizar la whitelist.`)
-      .setColor("Purple")
-      .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-      .setFooter({ text: "UNITY CITY RP", iconURL: member.guild.iconURL() })
-      .setTimestamp();
+const embed = new EmbedBuilder()
+  .setTitle(`🎉 ¡Nuevo miembro en **UNITY CITY**!`)
+  .setDescription(`Bienvenido/a ${member} a **${member.guild.name}** 🚀\n👉 No olvides leer las normas y realizar la whitelist.`)
+  .setColor("Purple")
+  .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+  .setFooter({ text: "UNITY CITY RP", iconURL: member.guild.iconURL() })
+  .setTimestamp();
 
     channel.send({ embeds: [embed] }).catch(() => {});
   } catch (err) {
