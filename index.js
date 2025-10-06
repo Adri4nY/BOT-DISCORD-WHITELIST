@@ -165,10 +165,18 @@ client.on("interactionCreate", async (interaction) => {
       }
 
       cooldowns.delete(target.id);
-      interaction.reply({
-        content: `✅ Se ha reseteado la whitelist de ${target.username}. Ahora puede volver a intentarla sin esperar.`,
-        flags: MessageFlags.Ephemeral
-      });
+      const embedReset = new EmbedBuilder()
+  .setTitle("♻️ Whitelist Reseteada")
+  .setDescription(`✅ Se ha reseteado la whitelist de **${target.username}**.\nAhora puede volver a intentarla sin esperar.`)
+  .setColor("Green")
+  .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+  .setFooter({ text: `Reseteado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
+  .setTimestamp();
+
+await interaction.reply({
+  embeds: [embedReset],
+  flags: MessageFlags.Ephemeral
+});
 
       const logChannel = guild.channels.cache.get(RESET_LOG_CHANNEL_ID);
       if (logChannel) {
