@@ -1,15 +1,18 @@
 // ------------------- Cargar variables de entorno ------------------- //
 require('dotenv').config();
-const { 
-  Client, 
-  GatewayIntentBits, 
-  Partials, 
-  EmbedBuilder, 
-  ActionRowBuilder, 
-  ButtonBuilder, 
-  ButtonStyle, 
-  StringSelectMenuBuilder, 
-  PermissionsBitField 
+const {
+  Client,
+  GatewayIntentBits,
+  Partials,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  StringSelectMenuBuilder,
+  PermissionsBitField,
+  SlashCommandBuilder,
+  REST,
+  Routes
 } = require('discord.js');
 const fs = require('fs');
 const express = require('express');
@@ -50,19 +53,44 @@ const client = new Client({
 
 // ------------------- Verificar token ------------------- //
 if (!process.env.TOKEN) {
-  console.error("❌ ERROR: La variable TOKEN no está definida. Añádela en Railway.");
+  console.error("❌ ERROR: La variable TOKEN no está definida.");
   process.exit(1);
 } else {
   console.log("🔑 TOKEN cargado correctamente.");
 }
 
 // ------------------- Evento Ready ------------------- //
-client.on("ready", () => {
+client.on("ready", async () => {
   console.log(`✅ Bot iniciado como: ${client.user.tag}`);
   client.user.setPresence({
     activities: [{ name: "UNITY CITY 🎮", type: 0 }],
     status: "online",
   });
+
+  // ------------------- Registrar Comandos Slash ------------------- //
+  const commands = [
+    new SlashCommandBuilder()
+      .setName("setup-soporte")
+      .setDescription("Configura el sistema de soporte."),
+    new SlashCommandBuilder() // NUEVO
+      .setName("reset-whitelist")
+      .setDescription("Resetea la whitelist de un usuario para que pueda volver a hacerla.")
+      .addUserOption(option =>
+        option.setName("usuario")
+          .setDescription("Usuario al que se le resetea la whitelist.")
+          .setRequired(true))
+  ].map(cmd => cmd.toJSON());
+
+  const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+  try {
+    await rest.put(
+      Routes.applicationCommands(client.user.id),
+      { body: commands }
+    );
+    console.log("✅ Comandos registrados correctamente.");
+  } catch (err) {
+    console.error("❌ Error al registrar comandos:", err);
+  }
 });
 
 // ------------------- Función hacer pregunta ------------------- //
@@ -107,8 +135,28 @@ client.on("interactionCreate", async (interaction) => {
     const guild = interaction.guild;
     if (!guild) return;
 
+    // ---- Comando /reset-whitelist ---- // NUEVO
+    if (interaction.isChatInputCommand() && interaction.commandName === "reset-whitelist") {
+      const member = await guild.members.fetch(interaction.user.id);
+      const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
+
+      if (!allowedRoles.some(role => member.roles.cache.has(role))) {
+        return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", ephemeral: true });
+      }
+
+      const target = interaction.options.getUser("usuario");
+      if (!target) return interaction.reply({ content: "⚠️ Usuario no válido.", ephemeral: true });
+
+      if (!cooldowns.has(target.id)) {
+        return interaction.reply({ content: `ℹ️ ${target.username} no tiene cooldown activo.`, ephemeral: true });
+      }
+
+      cooldowns.delete(target.id);
+      interaction.reply({ content: `✅ Se ha reseteado la whitelist de ${target.username}. Ahora puede volver a intentarla sin esperar.`, ephemeral: true });
+    }
+
     // ---- Setup Soporte ----
-    if (interaction.isCommand() && interaction.commandName === "setup-soporte") {
+    if (interaction.isChatInputCommand() && interaction.commandName === "setup-soporte") {
       const embed = new EmbedBuilder()
         .setTitle("🎫 Sistema de Tickets - UNITY CITY")
         .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
@@ -150,8 +198,12 @@ client.on("interactionCreate", async (interaction) => {
         parent: cat,
         permissionOverwrites: [
           { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
-        ]
+          { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+          // NUEVO: permitir ver al staff
+          { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+          { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+          { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+        ],
       });
 
       const embedTicket = new EmbedBuilder()
@@ -189,6 +241,7 @@ client.on("interactionCreate", async (interaction) => {
         const remaining = COOLDOWN_HORAS * 60 * 60 * 1000 - (now - cooldowns.get(userId));
         const hours = Math.floor(remaining / (1000 * 60 * 60));
         const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+
         return interaction.reply({
           content: `⚠️ Ya hiciste un intento de whitelist. Debes esperar ${hours}h ${minutes}m antes de intentarlo de nuevo.`,
           ephemeral: true,
@@ -204,6 +257,10 @@ client.on("interactionCreate", async (interaction) => {
         permissionOverwrites: [
           { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
           { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+          // NUEVO: permitir ver al staff
+          { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+          { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+          { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
         ],
       });
 
@@ -225,7 +282,6 @@ client.on("interactionCreate", async (interaction) => {
 
       const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
       if (logChannel) logChannel.send({ embeds: [resultadoEmbed] });
-
       await channel.send({ embeds: [resultadoEmbed] });
 
       if (aprobado) {
@@ -242,6 +298,7 @@ client.on("interactionCreate", async (interaction) => {
 
       setTimeout(() => channel.delete().catch(() => {}), 30000);
     }
+
   } catch (error) {
     console.error("❌ Error en interactionCreate:", error);
     if (interaction.replied || interaction.deferred) {
