@@ -62,7 +62,7 @@ if (!process.env.TOKEN) {
 }
 
 // ------------------- Evento ClientReady ------------------- //
-client.on("clientReady", async () => {
+client.on("ready", async () => {
   console.log(`✅ Bot iniciado como: ${client.user.tag}`);
   client.user.setPresence({
     activities: [{ name: "UNITY CITY 🎮", type: 0 }],
@@ -137,7 +137,7 @@ client.on("interactionCreate", async (interaction) => {
     const guild = interaction.guild;
     if (!guild) return;
 
-    // ---- Comando /reset-whitelist ---- //
+    // ------------------- /reset-whitelist ------------------- //
     if (interaction.isChatInputCommand() && interaction.commandName === "reset-whitelist") {
       const member = await guild.members.fetch(interaction.user.id);
       const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
@@ -150,33 +150,21 @@ client.on("interactionCreate", async (interaction) => {
       }
 
       const target = interaction.options.getUser("usuario");
-      if (!target) {
-        return interaction.reply({
-          content: "⚠️ Usuario no válido.",
-          flags: MessageFlags.Ephemeral
-        });
-      }
+      if (!target) return interaction.reply({ content: "⚠️ Usuario no válido.", flags: MessageFlags.Ephemeral });
 
-      if (!cooldowns.has(target.id)) {
-        return interaction.reply({
-          content: `ℹ️ ${target.username} no tiene cooldown activo.`,
-          flags: MessageFlags.Ephemeral
-        });
-      }
+      if (!cooldowns.has(target.id)) return interaction.reply({ content: `ℹ️ ${target.username} no tiene cooldown activo.`, flags: MessageFlags.Ephemeral });
 
       cooldowns.delete(target.id);
-      const embedReset = new EmbedBuilder()
-  .setTitle("♻️ Whitelist Reseteada")
-  .setDescription(`✅ Se ha reseteado la whitelist de **${target.username}**.\nAhora puede volver a intentarla sin esperar.`)
-  .setColor("Green")
-  .setThumbnail(target.displayAvatarURL({ dynamic: true }))
-  .setFooter({ text: `Reseteado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
-  .setTimestamp();
 
-await interaction.reply({
-  embeds: [embedReset],
-  flags: MessageFlags.Ephemeral
-});
+      const embedReset = new EmbedBuilder()
+        .setTitle("♻️ Whitelist Reseteada")
+        .setDescription(`✅ Se ha reseteado la whitelist de **${target.username}**.\nAhora puede volver a intentarla sin esperar.`)
+        .setColor("Green")
+        .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+        .setFooter({ text: `Reseteado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
+        .setTimestamp();
+
+      await interaction.reply({ embeds: [embedReset], flags: MessageFlags.Ephemeral });
 
       const logChannel = guild.channels.cache.get(RESET_LOG_CHANNEL_ID);
       if (logChannel) {
@@ -192,12 +180,11 @@ await interaction.reply({
           .setThumbnail(target.displayAvatarURL({ dynamic: true }))
           .setFooter({ text: "Sistema de Whitelist - UNITY CITY" })
           .setTimestamp();
-
         await logChannel.send({ embeds: [embedLog] });
       }
     }
 
-    // ---- Setup Soporte ----
+    // ------------------- /setup-soporte ------------------- //
     if (interaction.isChatInputCommand() && interaction.commandName === "setup-soporte") {
       const embed = new EmbedBuilder()
         .setTitle("🎫 Sistema de Tickets - UNITY CITY")
@@ -221,132 +208,51 @@ await interaction.reply({
       await interaction.reply({ embeds: [embed], components: [row] });
     }
 
-    // ---- Ticket Select ----
-    if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
-      const ticketMap = {
-        soporte_general: { cat: SOPORTE_CATEGORY_ID, label: "🟢 Ticket de Soporte General" },
-        reportes: { cat: "1423746566610620568", label: "🐞 Ticket de Reportes" },
-        ck: { cat: "1423746747741765632", label: "💀 Ticket de CK" },
-        donaciones: { cat: "1423747380637073489", label: "💸 Ticket de Donaciones" },
-        facciones: { cat: "1423747506382311485", label: "🏢 Ticket de Facciones" },
-        postulacion: { cat: "1423747604495466536", label: "📋 Ticket de Postulación" }
-      };
+    // ------------------- Comandos de pautas ------------------- //
+    if (interaction.isChatInputCommand()) {
+      const commandName = interaction.commandName;
+      const allowedCommands = ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"];
+      if (allowedCommands.includes(commandName)) {
+        const embed = new EmbedBuilder()
+          .setTitle(`📌 Pautas para ${commandName.replace("p", "").toUpperCase()}`)
+          .setColor("Purple")
+          .setFooter({ text: "UNITY CITY RP - Postulación" })
+          .setTimestamp();
 
-      const { cat, label } = ticketMap[interaction.values[0]];
-
-      const channel = await guild.channels.create({
-        name: `${interaction.values[0]}-${interaction.user.username}`,
-        type: 0,
-        parent: cat,
-        permissionOverwrites: [
-          { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-        ],
-      });
-
-      const embedTicket = new EmbedBuilder()
-        .setTitle(label)
-        .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**. Un miembro del staff te atenderá pronto.`)
-        .setColor("Blue")
-        .setTimestamp();
-
-      const rowCerrar = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId("cerrar_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger)
-      );
-
-      await channel.send({
-        content: `<@&${MOD_ROLES.moderador}> <@&${MOD_ROLES.soporte}> <@&${MOD_ROLES.admin}>`,
-        embeds: [embedTicket],
-        components: [rowCerrar],
-        allowedMentions: { roles: [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin] }
-      });
-
-      await interaction.reply({
-        content: `✅ Ticket creado: ${channel}`,
-        flags: MessageFlags.Ephemeral
-      });
-    }
-
-    // ---- Cerrar ticket ----
-    if (interaction.isButton() && interaction.customId === "cerrar_ticket") {
-      await interaction.reply({
-        content: "⏳ Cerrando ticket en 5 segundos...",
-        flags: MessageFlags.Ephemeral
-      });
-      setTimeout(() => interaction.channel?.delete().catch(() => {}), 5000);
-    }
-
-    // ---- Botón Whitelist ----
-    if (interaction.isButton() && interaction.customId === "whitelist") {
-      const userId = interaction.user.id;
-      const now = Date.now();
-
-      if (cooldowns.has(userId) && now - cooldowns.get(userId) < COOLDOWN_HORAS * 60 * 60 * 1000) {
-        const remaining = COOLDOWN_HORAS * 60 * 60 * 1000 - (now - cooldowns.get(userId));
-        const hours = Math.floor(remaining / (1000 * 60 * 60));
-        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-
-        return interaction.reply({
-          content: `⚠️ Ya hiciste un intento de whitelist. Debes esperar ${hours}h ${minutes}m antes de intentarlo de nuevo.`,
-          flags: MessageFlags.Ephemeral
-        });
-      }
-
-      cooldowns.set(userId, now);
-
-      const channel = await guild.channels.create({
-        name: `whitelist-${interaction.user.username}`,
-        type: 0,
-        parent: WHITELIST_CATEGORY_ID,
-        permissionOverwrites: [
-          { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-        ],
-      });
-
-      await interaction.reply({
-        content: `✅ Ticket de whitelist creado: ${channel}`,
-        flags: MessageFlags.Ephemeral
-      });
-
-      let puntaje = 0;
-      for (let i = 0; i < preguntas.length; i++) {
-        const respuesta = await hacerPregunta(channel, interaction.user, preguntas[i], i, preguntas.length);
-        if (respuesta && respuesta === preguntas[i].respuesta) puntaje++;
-      }
-
-      const aprobado = puntaje >= 9;
-      const resultadoEmbed = new EmbedBuilder()
-        .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
-        .setDescription(aprobado
-          ? `🎉 ¡Felicidades ${interaction.user}, has aprobado la whitelist!\n**Puntaje:** ${puntaje}/${preguntas.length}`
-          : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
-        .setColor(aprobado ? "Green" : "Red");
-
-      const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
-      if (logChannel) logChannel.send({ embeds: [resultadoEmbed] });
-      await channel.send({ embeds: [resultadoEmbed] });
-
-      if (aprobado) {
-        try {
-          const member = await guild.members.fetch(interaction.user.id);
-          await member.roles.add(ROLES.whitelist);
-          await member.roles.remove(ROLES.sinWhitelist);
-          await channel.send("🎉 ¡Has recibido el rol de **Whitelist**!");
-        } catch (err) {
-          console.error("❌ Error al asignar rol:", err);
-          await channel.send("⚠️ Error al asignar rol, avisa a un staff.");
+        switch (commandName) {
+          case "pilegales":
+            embed.addFields(
+              { name: "Formato", value: "PDF OBLIGATORIO", inline: false },
+              { name: "Origen de la banda", value: "Describe el origen de la banda.", inline: false },
+              { name: "Historia y expansión", value: "Explica la historia y expansión de la banda.", inline: false },
+              { name: "Estructura y símbolos", value: "Detalla la estructura y símbolos que representen la banda.", inline: false },
+              { name: "Personalidad y reputación", value: "Describe la personalidad y reputación.", inline: false },
+              { name: "Aportación al servidor", value: "Qué vais a aportar y cómo fomentaréis el rol.", inline: false },
+              { name: "Disponibilidad", value: "Disponibilidad horaria de los miembros y planes de progresión.", inline: false },
+              { name: "Ubicación", value: "Foto de la ubicación del barrio.", inline: false },
+              { name: "Integrantes", value: "Lista de integrantes.", inline: false },
+              { name: "Grafiti", value: "Boceto o foto del grafiti.", inline: false }
+            );
+            break;
+          case "pnegocios":
+            embed.setDescription("Aquí van las pautas para negocios...");
+            break;
+          case "pstaff":
+            embed.setDescription("Aquí van las pautas para staff...");
+            break;
+          case "pck":
+            embed.setDescription("Aquí van las pautas para CK...");
+            break;
+          case "pstreamer":
+            embed.setDescription("Aquí van las pautas para streamers...");
+            break;
         }
-      }
 
-      setTimeout(() => channel.delete().catch(() => {}), 30000);
+        await interaction.reply({ embeds: [embed], ephemeral: false });
+      }
     }
+
+    // ------------------- Aquí irían los demás botones e interacciones como whitelist, tickets, cerrar ticket, etc. ------------------- //
 
   } catch (error) {
     console.error("❌ Error en interactionCreate:", error);
@@ -384,53 +290,6 @@ client.on("guildMemberAdd", async (member) => {
     console.error("❌ Error en guildMemberAdd:", err);
   }
 });
-
-/////////////////////////////////////////////////
-
-// ------------------- Comandos de pautas ------------------- //
-if (interaction.isChatInputCommand()) {
-  const commandName = interaction.commandName;
-  const allowedCommands = ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"];
-  if (!allowedCommands.includes(commandName)) return;
-
-  const embed = new EmbedBuilder()
-    .setTitle(`📌 Pautas para ${commandName.replace("p", "").toUpperCase()}`)
-    .setColor("Purple")
-    .setFooter({ text: "UNITY CITY RP - Postulación" })
-    .setTimestamp();
-
-  switch (commandName) {
-    case "pilegales":
-      embed.addFields(
-        { name: "Formato", value: "PDF OBLIGATORIO", inline: false },
-        { name: "Origen de la banda", value: "Describe el origen de la banda.", inline: false },
-        { name: "Historia y expansión", value: "Explica la historia y expansión de la banda.", inline: false },
-        { name: "Estructura y símbolos", value: "Detalla la estructura y símbolos que representen la banda.", inline: false },
-        { name: "Personalidad y reputación", value: "Describe la personalidad y reputación.", inline: false },
-        { name: "Aportación al servidor", value: "Qué vais a aportar y cómo fomentaréis el rol.", inline: false },
-        { name: "Disponibilidad", value: "Disponibilidad horaria de los miembros y planes de progresión.", inline: false },
-        { name: "Ubicación", value: "Foto de la ubicación del barrio.", inline: false },
-        { name: "Integrantes", value: "Lista de integrantes.", inline: false },
-        { name: "Grafiti", value: "Boceto o foto del grafiti.", inline: false }
-      );
-      break;
-    case "pnegocios":
-      embed.setDescription("Aquí van las pautas para negocios...");
-      break;
-    case "pstaff":
-      embed.setDescription("Aquí van las pautas para staff...");
-      break;
-    case "pck":
-      embed.setDescription("Aquí van las pautas para CK...");
-      break;
-    case "pstreamer":
-      embed.setDescription("Aquí van las pautas para streamers...");
-      break;
-  }
-
-  await interaction.reply({ embeds: [embed], ephemeral: false });
-} 
-}); 
 
 // ------------------- Login ------------------- //
 client.login(process.env.TOKEN)
