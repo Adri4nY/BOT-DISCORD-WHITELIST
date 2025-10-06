@@ -105,7 +105,7 @@ client.on("ready", async () => {
     status: "online",
   });
 
-  // ------------------- Registrar Comandos Slash ------------------- //
+  // Registrar comandos slash
   const commands = [
     new SlashCommandBuilder()
       .setName("setup-soporte")
