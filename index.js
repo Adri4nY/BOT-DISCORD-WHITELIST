@@ -12,7 +12,8 @@ const {
   PermissionsBitField,
   SlashCommandBuilder,
   REST,
-  Routes
+  Routes,
+  MessageFlags
 } = require('discord.js');
 const fs = require('fs');
 const express = require('express');
@@ -60,8 +61,8 @@ if (!process.env.TOKEN) {
   console.log("🔑 TOKEN cargado correctamente.");
 }
 
-// ------------------- Evento Ready ------------------- //
-client.on("ready", async () => {
+// ------------------- Evento ClientReady ------------------- //
+client.on("clientReady", async () => {
   console.log(`✅ Bot iniciado como: ${client.user.tag}`);
   client.user.setPresence({
     activities: [{ name: "UNITY CITY 🎮", type: 0 }],
@@ -73,7 +74,7 @@ client.on("ready", async () => {
     new SlashCommandBuilder()
       .setName("setup-soporte")
       .setDescription("Configura el sistema de soporte."),
-    new SlashCommandBuilder() // NUEVO
+    new SlashCommandBuilder()
       .setName("reset-whitelist")
       .setDescription("Resetea la whitelist de un usuario para que pueda volver a hacerla.")
       .addUserOption(option =>
@@ -136,27 +137,39 @@ client.on("interactionCreate", async (interaction) => {
     const guild = interaction.guild;
     if (!guild) return;
 
-    // ---- Comando /reset-whitelist ---- // NUEVO
+    // ---- Comando /reset-whitelist ---- //
     if (interaction.isChatInputCommand() && interaction.commandName === "reset-whitelist") {
       const member = await guild.members.fetch(interaction.user.id);
       const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
 
       if (!allowedRoles.some(role => member.roles.cache.has(role))) {
-        return interaction.reply({ content: "❌ No tienes permiso para usar este comando.", ephemeral: true });
+        return interaction.reply({
+          content: "❌ No tienes permiso para usar este comando.",
+          flags: MessageFlags.Ephemeral
+        });
       }
 
       const target = interaction.options.getUser("usuario");
-      if (!target) return interaction.reply({ content: "⚠️ Usuario no válido.", ephemeral: true });
+      if (!target) {
+        return interaction.reply({
+          content: "⚠️ Usuario no válido.",
+          flags: MessageFlags.Ephemeral
+        });
+      }
 
       if (!cooldowns.has(target.id)) {
-        return interaction.reply({ content: `ℹ️ ${target.username} no tiene cooldown activo.`, ephemeral: true });
+        return interaction.reply({
+          content: `ℹ️ ${target.username} no tiene cooldown activo.`,
+          flags: MessageFlags.Ephemeral
+        });
       }
 
       cooldowns.delete(target.id);
-      interaction.reply({ content: `✅ Se ha reseteado la whitelist de ${target.username}. Ahora puede volver a intentarla sin esperar.`, ephemeral: true });
-    }
+      interaction.reply({
+        content: `✅ Se ha reseteado la whitelist de ${target.username}. Ahora puede volver a intentarla sin esperar.`,
+        flags: MessageFlags.Ephemeral
+      });
 
-      // 🧾 Log al canal de resets
       const logChannel = guild.channels.cache.get(RESET_LOG_CHANNEL_ID);
       if (logChannel) {
         const embedLog = new EmbedBuilder()
@@ -175,7 +188,7 @@ client.on("interactionCreate", async (interaction) => {
         await logChannel.send({ embeds: [embedLog] });
       }
     }
-    
+
     // ---- Setup Soporte ----
     if (interaction.isChatInputCommand() && interaction.commandName === "setup-soporte") {
       const embed = new EmbedBuilder()
@@ -220,7 +233,6 @@ client.on("interactionCreate", async (interaction) => {
         permissionOverwrites: [
           { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
           { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          // NUEVO: permitir ver al staff
           { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
           { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
           { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
@@ -244,12 +256,18 @@ client.on("interactionCreate", async (interaction) => {
         allowedMentions: { roles: [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin] }
       });
 
-      await interaction.reply({ content: `✅ Ticket creado: ${channel}`, ephemeral: true });
+      await interaction.reply({
+        content: `✅ Ticket creado: ${channel}`,
+        flags: MessageFlags.Ephemeral
+      });
     }
 
     // ---- Cerrar ticket ----
     if (interaction.isButton() && interaction.customId === "cerrar_ticket") {
-      await interaction.reply({ content: "⏳ Cerrando ticket en 5 segundos...", ephemeral: true });
+      await interaction.reply({
+        content: "⏳ Cerrando ticket en 5 segundos...",
+        flags: MessageFlags.Ephemeral
+      });
       setTimeout(() => interaction.channel?.delete().catch(() => {}), 5000);
     }
 
@@ -265,7 +283,7 @@ client.on("interactionCreate", async (interaction) => {
 
         return interaction.reply({
           content: `⚠️ Ya hiciste un intento de whitelist. Debes esperar ${hours}h ${minutes}m antes de intentarlo de nuevo.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral
         });
       }
 
@@ -278,14 +296,16 @@ client.on("interactionCreate", async (interaction) => {
         permissionOverwrites: [
           { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
           { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          // NUEVO: permitir ver al staff
           { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
           { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
           { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
         ],
       });
 
-      await interaction.reply({ content: `✅ Ticket de whitelist creado: ${channel}`, ephemeral: true });
+      await interaction.reply({
+        content: `✅ Ticket de whitelist creado: ${channel}`,
+        flags: MessageFlags.Ephemeral
+      });
 
       let puntaje = 0;
       for (let i = 0; i < preguntas.length; i++) {
@@ -323,9 +343,15 @@ client.on("interactionCreate", async (interaction) => {
   } catch (error) {
     console.error("❌ Error en interactionCreate:", error);
     if (interaction.replied || interaction.deferred) {
-      interaction.followUp({ content: "⚠️ Ocurrió un error al procesar tu interacción.", ephemeral: true }).catch(() => {});
+      interaction.followUp({
+        content: "⚠️ Ocurrió un error al procesar tu interacción.",
+        flags: MessageFlags.Ephemeral
+      }).catch(() => {});
     } else {
-      interaction.reply({ content: "⚠️ Ocurrió un error al procesar tu interacción.", ephemeral: true }).catch(() => {});
+      interaction.reply({
+        content: "⚠️ Ocurrió un error al procesar tu interacción.",
+        flags: MessageFlags.Ephemeral
+      }).catch(() => {});
     }
   }
 });
