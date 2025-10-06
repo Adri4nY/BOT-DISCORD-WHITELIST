@@ -385,6 +385,38 @@ client.on("guildMemberAdd", async (member) => {
   }
 });
 
+/////////////////////////////////////////////////
+
+// ------------------- Comandos de pautas ------------------- //
+if (interaction.isChatInputCommand()) {
+  const commandName = interaction.commandName;
+  const allowedCommands = ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"];
+  if (!allowedCommands.includes(commandName)) return;
+
+  // Crear embed
+  const embed = new EmbedBuilder()
+    .setTitle(`📌 Pautas para ${commandName.replace("p", "").toUpperCase()}`)
+    .setColor("Purple")
+    .setFooter({ text: "UNITY CITY RP - Postulación" })
+    .setTimestamp();
+
+  // Agregar campos según el comando
+  switch (commandName) {
+    case "pilegales":
+      embed.addFields(
+        { name: "Formato", value: "PDF OBLIGATORIO", inline: false },
+        { name: "Origen de la banda", value: "Describe el origen de la banda.", inline: false },
+        { name: "Historia y expansión", value: "Explica la historia y expansión de la banda.", inline: false },
+        { name: "Estructura y símbolos", value: "Detalla la estructura y símbolos que representen la banda.", inline: false },
+        { name: "Personalidad y reputación", value: "Describe la personalidad y reputación.", inline: false },
+        { name: "Aportación al servidor", value: "Qué vais a aportar y cómo fomentaréis el rol.", inline: false },
+        { name: "Disponibilidad", value: "Disponibilidad horaria de los miembros y planes de progresión.", inline: false },
+        { name: "Ubicación", value: "Foto de la ubicación del barrio.", inline: false },
+        { name: "Integrantes", value: "Lista de integrantes.", inline: false },
+        { name: "Grafiti", value: "Boceto o foto del grafiti.", inline: false }
+      );
+      break;
+
 // ------------------- Login ------------------- //
 client.login(process.env.TOKEN)
   .then(() => console.log("🔓 Login exitoso. Bot conectado a Discord."))
