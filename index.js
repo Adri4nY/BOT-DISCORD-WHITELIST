@@ -105,7 +105,7 @@ client.on("ready", async () => {
     status: "online",
   });
 
-  // Registrar comandos slash
+  // ------------------- Registrar comandos ------------------- //
   const commands = [
     new SlashCommandBuilder().setName("setup-soporte").setDescription("Configura el sistema de soporte."),
     new SlashCommandBuilder()
@@ -120,10 +120,20 @@ client.on("ready", async () => {
   ].map(cmd => cmd.toJSON());
 
   const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+
   try {
     const GUILD_ID = "821091789325729803"; 
+
+    // 🔹 BORRAR TODOS LOS COMANDOS GLOBALES Y DE GUILD PARA EVITAR DUPLICADOS
+    const globalCommands = await rest.get(Routes.applicationCommands(client.user.id));
+    for (const cmd of globalCommands) await rest.delete(Routes.applicationCommand(client.user.id, cmd.id));
+
+    const guildCommands = await rest.get(Routes.applicationGuildCommands(client.user.id, GUILD_ID));
+    for (const cmd of guildCommands) await rest.delete(Routes.applicationGuildCommand(client.user.id, GUILD_ID, cmd.id));
+
+    // Registrar comandos
     await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commands });
-    console.log("✅ Comandos registrados correctamente.");
+    console.log("✅ Comandos registrados correctamente y duplicados eliminados.");
   } catch (err) {
     console.error("❌ Error al registrar comandos:", err);
   }
@@ -135,74 +145,101 @@ client.on("interactionCreate", async (interaction) => {
     const guild = interaction.guild;
     if (!guild) return;
 
-    // ---- Comando /reset-whitelist ---- //
-    if (interaction.isChatInputCommand() && interaction.commandName === "reset-whitelist") {
-      const member = await guild.members.fetch(interaction.user.id);
-      const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
-      if (!allowedRoles.some(role => member.roles.cache.has(role))) {
-        return interaction.reply({ content: "❌ No tienes permiso.", flags: MessageFlags.Ephemeral });
-      }
+    // ------------------- Comandos ------------------- //
+    if (interaction.isChatInputCommand()) {
+      switch (interaction.commandName) {
 
-      const target = interaction.options.getUser("usuario");
-      if (!target) return interaction.reply({ content: "⚠️ Usuario no válido.", flags: MessageFlags.Ephemeral });
-      if (!cooldowns.has(target.id)) return interaction.reply({ content: `ℹ️ ${target.username} no tiene cooldown activo.`, flags: MessageFlags.Ephemeral });
+        // ---- Pautas ---- //
+        case "pilegales":
+          await interaction.reply({ content: "📜 **Pautas Legales:**\n- Aquí van las reglas legales del servidor.", ephemeral: true });
+          break;
+        case "pnegocios":
+          await interaction.reply({ content: "💼 **Pautas de Negocios:**\n- Aquí van las pautas para negocios en el servidor.", ephemeral: true });
+          break;
+        case "pstaff":
+          await interaction.reply({ content: "🛠️ **Pautas de Staff:**\n- Aquí van las normas para el staff.", ephemeral: true });
+          break;
+        case "pck":
+          await interaction.reply({ content: "💀 **Pautas de CK:**\n- Aquí van las reglas de CK.", ephemeral: true });
+          break;
+        case "pstreamer":
+          await interaction.reply({ content: "🎥 **Pautas de Streamers:**\n- Aquí van las pautas para streamers.", ephemeral: true });
+          break;
 
-      cooldowns.delete(target.id);
+        // ---- Setup Soporte ---- //
+        case "setup-soporte":
+          {
+            const embed = new EmbedBuilder()
+              .setTitle("🎫 Sistema de Tickets - UNITY CITY")
+              .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
+              .setColor("Purple");
 
-      const embedReset = new EmbedBuilder()
-        .setTitle("♻️ Whitelist Reseteada")
-        .setDescription(`✅ Se ha reseteado la whitelist de **${target.username}**.`)
-        .setColor("Green")
-        .setThumbnail(target.displayAvatarURL({ dynamic: true }))
-        .setFooter({ text: `Reseteado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
-        .setTimestamp();
+            const row = new ActionRowBuilder().addComponents(
+              new StringSelectMenuBuilder()
+                .setCustomId("ticket_select")
+                .setPlaceholder("Abrir un ticket...")
+                .addOptions([
+                  { label: "Soporte General", value: "soporte_general", description: "Abrir ticket de soporte general", emoji: "🟢" },
+                  { label: "Reportes", value: "reportes", description: "Abrir ticket de reportes", emoji: "🐞" },
+                  { label: "CK", value: "ck", description: "Abrir ticket de CK", emoji: "💀" },
+                  { label: "Donaciones", value: "donaciones", description: "Abrir ticket de donaciones", emoji: "💸" },
+                  { label: "Facciones", value: "facciones", description: "Abrir ticket de facciones", emoji: "🏢" },
+                  { label: "Postulación", value: "postulacion", description: "Abrir ticket de postulación", emoji: "📋" },
+                ])
+            );
 
-      await interaction.reply({ embeds: [embedReset], flags: MessageFlags.Ephemeral });
+            await interaction.reply({ embeds: [embed], components: [row] });
+          }
+          break;
 
-      const logChannel = guild.channels.cache.get(RESET_LOG_CHANNEL_ID);
-      if (logChannel) {
-        const embedLog = new EmbedBuilder()
-          .setTitle("🧹 Whitelist Reseteada")
-          .setDescription(`El usuario **${target.tag}** ha sido reseteado.`)
-          .addFields(
-            { name: "👮‍♂️ Staff:", value: `${interaction.user.tag}`, inline: true },
-            { name: "🎯 Usuario:", value: `${target.tag}`, inline: true },
-            { name: "🕒 Fecha:", value: `<t:${Math.floor(Date.now() / 1000)}:F>` }
-          )
-          .setColor("Orange")
-          .setThumbnail(target.displayAvatarURL({ dynamic: true }))
-          .setFooter({ text: "Sistema de Whitelist - UNITY CITY" })
-          .setTimestamp();
+        // ---- Reset Whitelist ---- //
+        case "reset-whitelist":
+          {
+            const member = await guild.members.fetch(interaction.user.id);
+            const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
+            if (!allowedRoles.some(role => member.roles.cache.has(role))) {
+              return interaction.reply({ content: "❌ No tienes permiso.", flags: MessageFlags.Ephemeral });
+            }
 
-        await logChannel.send({ embeds: [embedLog] });
+            const target = interaction.options.getUser("usuario");
+            if (!target) return interaction.reply({ content: "⚠️ Usuario no válido.", flags: MessageFlags.Ephemeral });
+            if (!cooldowns.has(target.id)) return interaction.reply({ content: `ℹ️ ${target.username} no tiene cooldown activo.`, flags: MessageFlags.Ephemeral });
+
+            cooldowns.delete(target.id);
+
+            const embedReset = new EmbedBuilder()
+              .setTitle("♻️ Whitelist Reseteada")
+              .setDescription(`✅ Se ha reseteado la whitelist de **${target.username}**.`)
+              .setColor("Green")
+              .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+              .setFooter({ text: `Reseteado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
+              .setTimestamp();
+
+            await interaction.reply({ embeds: [embedReset], flags: MessageFlags.Ephemeral });
+
+            const logChannel = guild.channels.cache.get(RESET_LOG_CHANNEL_ID);
+            if (logChannel) {
+              const embedLog = new EmbedBuilder()
+                .setTitle("🧹 Whitelist Reseteada")
+                .setDescription(`El usuario **${target.tag}** ha sido reseteado.`)
+                .addFields(
+                  { name: "👮‍♂️ Staff:", value: `${interaction.user.tag}`, inline: true },
+                  { name: "🎯 Usuario:", value: `${target.tag}`, inline: true },
+                  { name: "🕒 Fecha:", value: `<t:${Math.floor(Date.now() / 1000)}:F>` }
+                )
+                .setColor("Orange")
+                .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+                .setFooter({ text: "Sistema de Whitelist - UNITY CITY" })
+                .setTimestamp();
+
+              await logChannel.send({ embeds: [embedLog] });
+            }
+          }
+          break;
       }
     }
 
-    // ---- Setup Soporte ---- //
-    if (interaction.isChatInputCommand() && interaction.commandName === "setup-soporte") {
-      const embed = new EmbedBuilder()
-        .setTitle("🎫 Sistema de Tickets - UNITY CITY")
-        .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
-        .setColor("Purple");
-
-      const row = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId("ticket_select")
-          .setPlaceholder("Abrir un ticket...")
-          .addOptions([
-            { label: "Soporte General", value: "soporte_general", description: "Abrir ticket de soporte general", emoji: "🟢" },
-            { label: "Reportes", value: "reportes", description: "Abrir ticket de reportes", emoji: "🐞" },
-            { label: "CK", value: "ck", description: "Abrir ticket de CK", emoji: "💀" },
-            { label: "Donaciones", value: "donaciones", description: "Abrir ticket de donaciones", emoji: "💸" },
-            { label: "Facciones", value: "facciones", description: "Abrir ticket de facciones", emoji: "🏢" },
-            { label: "Postulación", value: "postulacion", description: "Abrir ticket de postulación", emoji: "📋" },
-          ])
-      );
-
-      await interaction.reply({ embeds: [embed], components: [row] });
-    }
-
-    // ---- Ticket Select ---- //
+    // ------------------- Botones y Select Menus ------------------- //
     if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
       const ticketMap = {
         soporte_general: { cat: SOPORTE_CATEGORY_ID, label: "🟢 Ticket de Soporte General" },
@@ -246,17 +283,14 @@ client.on("interactionCreate", async (interaction) => {
       await interaction.reply({ content: `✅ Ticket creado: ${channel}`, flags: MessageFlags.Ephemeral });
     }
 
-    // ---- Botones ---- //
     if (interaction.isButton()) {
       const customId = interaction.customId;
 
-      // Cerrar ticket
       if (customId === "cerrar_ticket") {
         await interaction.reply({ content: "⏳ Cerrando ticket en 5 segundos...", flags: MessageFlags.Ephemeral });
         setTimeout(() => interaction.channel?.delete().catch(() => {}), 5000);
       }
 
-      // Whitelist
       if (customId === "whitelist") {
         const userId = interaction.user.id;
         const now = Date.now();
@@ -338,7 +372,9 @@ client.on("guildMemberAdd", async (member) => {
     if (!channel) return;
 
     const embed = new EmbedBuilder()
-      .setTitle("🎉 ¡Nuevo miembro en **UNITY CITY**!")
+      .setTitle("🎉 ¡Nuevo miembro en **UNITY CITY**!
+
+")
       .setDescription(`Bienvenido/a ${member} a **${member.guild.name}** 🚀\n👉 No olvides leer las normas y realizar la whitelist.`)
       .setColor("Purple")
       .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
