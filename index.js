@@ -141,44 +141,50 @@ client.on("interactionCreate", async (interaction) => {
     if (!guild) return;
 
     // ------------------- Comando /addwhitelist ------------------- //
-    if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelist") {
-      const member = await guild.members.fetch(interaction.user.id);
-      const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
+if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelist") {
+  const member = await guild.members.fetch(interaction.user.id);
+  const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
 
-      if (!allowedRoles.some(role => member.roles.cache.has(role))) {
-        return interaction.reply({
-          content: "❌ No tienes permiso para usar este comando. Solo Staff puede hacerlo.",
-          flags: MessageFlags.Ephemeral
-        });
-      }
+  if (!allowedRoles.some(role => member.roles.cache.has(role))) {
+    return interaction.reply({
+      content: "❌ No tienes permiso para usar este comando. Solo Staff puede hacerlo.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
 
-      const usuario = interaction.options.getUser("usuario");
-      const miembro = await guild.members.fetch(usuario.id);
+  const usuario = interaction.options.getUser("usuario");
+  const miembro = await guild.members.fetch(usuario.id);
 
-      await miembro.roles.add(ROLES.whitelist).catch(() => {});
-      await miembro.roles.remove(ROLES.sinWhitelist).catch(() => {});
+  await miembro.roles.add(ROLES.whitelist).catch(() => {});
+  await miembro.roles.remove(ROLES.sinWhitelist).catch(() => {});
 
-      // Embed público
-      const embed = new EmbedBuilder()
-        .setDescription(`✅ El usuario ${usuario} ha sido añadido a la whitelist.`)
-        .setColor("Green")
-        .setTimestamp();
+  // Canal público
+  const publicChannel = guild.channels.cache.get(1422893357042110546); // ID del canal público
+  if (publicChannel) {
+    const embed = new EmbedBuilder()
+      .setDescription(`✅ El usuario ${usuario} ha sido añadido a la whitelist.`)
+      .setColor("Green")
+      .setTimestamp();
 
-      await interaction.reply({ embeds: [embed] });
+    publicChannel.send({ embeds: [embed] });
+  }
 
-      // Log de staff
-      const logChannel = guild.channels.cache.get(LOGS_CHANNEL_ID);
-      if (logChannel) {
-        const logEmbed = new EmbedBuilder()
-          .setTitle("📋 Nuevo añadido a Whitelist")
-          .setDescription(`👤 **Usuario añadido:** ${usuario}\n🧑‍💼 **Añadido por:** ${interaction.user}`)
-          .setColor("Blue")
-          .setTimestamp();
+  // Mensaje efímero al que ejecutó el comando
+  await interaction.reply({ content: "✅ Usuario añadido a la whitelist correctamente.", ephemeral: true });
 
-        logChannel.send({ embeds: [logEmbed] });
-      }
-      return;
-    }
+  // Log de staff
+  const logChannel = guild.channels.cache.get(LOGS_CHANNEL_ID);
+  if (logChannel) {
+    const logEmbed = new EmbedBuilder()
+      .setTitle("📋 Nuevo añadido a Whitelist")
+      .setDescription(`👤 **Usuario añadido:** ${usuario}\n🧑‍💼 **Añadido por:** ${interaction.user}`)
+      .setColor("Purple")
+      .setTimestamp();
+
+    logChannel.send({ embeds: [logEmbed] });
+  }
+  return;
+}
 
     // ------------------- Comandos de pautas ------------------- //
     if (interaction.isChatInputCommand() && ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"].includes(interaction.commandName)) {
