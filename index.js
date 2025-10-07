@@ -163,7 +163,7 @@ if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelis
   const publicChannel = guild.channels.cache.get(PUBLIC_CHANNEL_ID); 
   if (publicChannel) {
     const embed = new EmbedBuilder()
-      .setTitole ("✅ Whitelist Añadida")
+      .setTitle("✅ Whitelist Añadida")
       .setDescription(`➡️ El usuario ${usuario} ha sido añadido a la whitelist.`)
       .setColor("Green")
       .setTimestamp();
