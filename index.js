@@ -28,6 +28,7 @@ app.listen(PORT, () => console.log(`🌐 Servidor web activo en puerto ${PORT}`)
 const preguntas = JSON.parse(fs.readFileSync("preguntas.json", "utf8"));
 const LOG_CHANNEL_ID = "1422893357042110546";
 const RESET_LOG_CHANNEL_ID = "1424694967472754769";
+const LOGS_CHANNEL_ID = "1425162413690327040";
 const WHITELIST_CATEGORY_ID = "1422897937427464203";
 const SOPORTE_CATEGORY_ID = "1422898157829881926";
 const COOLDOWN_HORAS = 6;
@@ -36,7 +37,7 @@ const ROLES = {
   sinWhitelist: "1320037024358600734",
 };
 const MOD_ROLES = {
-  moderador: "1226606346967973900",
+  moderador: "1254109535602344026",
   soporte: "1226606408682700862",
   admin: "1203773772868620308"
 };
@@ -117,6 +118,10 @@ client.on("ready", async () => {
     new SlashCommandBuilder().setName("pstaff").setDescription("Muestra pautas de staff."),
     new SlashCommandBuilder().setName("pck").setDescription("Muestra pautas de CK."),
     new SlashCommandBuilder().setName("pstreamer").setDescription("Muestra pautas de streamers."),
+    new SlashCommandBuilder()
+      .setName("addwhitelist")
+      .setDescription("Añade un usuario a la whitelist.")
+      .addUserOption(option => option.setName("usuario").setDescription("Usuario a añadir").setRequired(true))
   ].map(cmd => cmd.toJSON());
 
   const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
@@ -134,6 +139,46 @@ client.on("interactionCreate", async (interaction) => {
   try {
     const guild = interaction.guild;
     if (!guild) return;
+
+    // ------------------- Comando /addwhitelist ------------------- //
+    if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelist") {
+      const member = await guild.members.fetch(interaction.user.id);
+      const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
+
+      if (!allowedRoles.some(role => member.roles.cache.has(role))) {
+        return interaction.reply({
+          content: "❌ No tienes permiso para usar este comando. Solo Staff puede hacerlo.",
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const usuario = interaction.options.getUser("usuario");
+      const miembro = await guild.members.fetch(usuario.id);
+
+      await miembro.roles.add(ROLES.whitelist).catch(() => {});
+      await miembro.roles.remove(ROLES.sinWhitelist).catch(() => {});
+
+      // Embed público
+      const embed = new EmbedBuilder()
+        .setDescription(`✅ El usuario ${usuario} ha sido añadido a la whitelist.`)
+        .setColor("Green")
+        .setTimestamp();
+
+      await interaction.reply({ embeds: [embed] });
+
+      // Log de staff
+      const logChannel = guild.channels.cache.get(LOGS_CHANNEL_ID);
+      if (logChannel) {
+        const logEmbed = new EmbedBuilder()
+          .setTitle("📋 Nuevo añadido a Whitelist")
+          .setDescription(`👤 **Usuario añadido:** ${usuario}\n🧑‍💼 **Añadido por:** ${interaction.user}`)
+          .setColor("Blue")
+          .setTimestamp();
+
+        logChannel.send({ embeds: [logEmbed] });
+      }
+      return;
+    }
 
     // ------------------- Comandos de pautas ------------------- //
     if (interaction.isChatInputCommand() && ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"].includes(interaction.commandName)) {
