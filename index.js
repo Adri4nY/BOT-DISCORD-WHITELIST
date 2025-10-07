@@ -27,6 +27,7 @@ app.listen(PORT, () => console.log(`🌐 Servidor web activo en puerto ${PORT}`)
 // ------------------- Config ------------------- //
 const preguntas = JSON.parse(fs.readFileSync("preguntas.json", "utf8"));
 const LOG_CHANNEL_ID = "1422893357042110546";
+const PUBLIC_CHANNEL_ID = "1422893357042110546";
 const RESET_LOG_CHANNEL_ID = "1424694967472754769";
 const LOGS_CHANNEL_ID = "1425162413690327040";
 const WHITELIST_CATEGORY_ID = "1422897937427464203";
@@ -159,7 +160,7 @@ if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelis
   await miembro.roles.remove(ROLES.sinWhitelist).catch(() => {});
 
   // Canal público
-  const publicChannel = guild.channels.cache.get(1422893357042110546); // ID del canal público
+  const publicChannel = guild.channels.cache.get(PUBLIC_CHANNEL_ID); 
   if (publicChannel) {
     const embed = new EmbedBuilder()
       .setDescription(`✅ El usuario ${usuario} ha sido añadido a la whitelist.`)
