@@ -257,19 +257,72 @@ client.on("interactionCreate", async (interaction) => {
         name: `${interaction.values[0]}-${interaction.user.username}`,
         type: 0,
         parent: cat,
-        permissionOverwrites: [
-          { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-        ],
-      });
+  permissionOverwrites: [
+    // 🚫 Todos fuera
+    { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
 
-      const embedTicket = new EmbedBuilder()
-        .setTitle(label)
-        .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**. Un miembro del staff te atenderá pronto.`)
-        .setColor("Blue")
+    // 👤 Usuario que abre el ticket
+    {
+      id: interaction.user.id,
+      allow: [
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.AttachFiles,
+        PermissionsBitField.Flags.EmbedLinks
+      ]
+    },
+
+    // 🤖 Permisos del BOT
+    {
+      id: client.user.id,
+      allow: [
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.AttachFiles,
+        PermissionsBitField.Flags.EmbedLinks,
+        PermissionsBitField.Flags.ManageChannels
+      ]
+    },
+
+    // 🧑‍⚖️ Moderadores
+    {
+      id: MOD_ROLES.moderador,
+      allow: [
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.AttachFiles,
+        PermissionsBitField.Flags.EmbedLinks
+      ]
+    },
+
+    // 🧑‍🔧 Soporte
+    {
+      id: MOD_ROLES.soporte,
+      allow: [
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.AttachFiles,
+        PermissionsBitField.Flags.EmbedLinks
+      ]
+    },
+
+    // 👑 Admins
+    {
+      id: MOD_ROLES.admin,
+      allow: [
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.AttachFiles,
+        PermissionsBitField.Flags.EmbedLinks
+      ]
+    }
+  ],
+});
+
+const embedTicket = new EmbedBuilder()
+  .setTitle(label)
+  .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**. Un miembro del staff te atenderá pronto.`)
+  .setColor("Purple")
         .setTimestamp();
 
       const rowCerrar = new ActionRowBuilder().addComponents(
