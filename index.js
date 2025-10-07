@@ -444,8 +444,8 @@ const embedTicket = new EmbedBuilder()
         const resultadoEmbed = new EmbedBuilder()
           .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
           .setDescription(aprobado
-            ? `🎉 ¡Felicidades ${interaction.user}, has aprobado la whitelist!\n**Puntaje:** ${puntaje}/${preguntas.length}`
-            : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
+            ? `🎉 ¡Felicidades ${interaction.user}, Tu examen de whitelist ha sido aprobado. ¡Disfruta del servidor!\n**Puntaje:** ${puntaje}/${preguntas.length}`
+            : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist, en 6h tendras otro intento. ¡Suerte la proxima vez!.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
           .setColor(aprobado ? "Green" : "Red");
 
         const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
