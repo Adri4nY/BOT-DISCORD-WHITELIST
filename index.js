@@ -358,15 +358,26 @@ if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select"
   const tipo = interaction.values[0];
   const { cat, label } = ticketMap[tipo];
 
-  // 🔍 Evitar tickets duplicados
+  // 🔒 Lock temporal para evitar doble creación
+  if (cooldowns.has(interaction.user.id) && cooldowns.get(interaction.user.id) === 'processing_ticket') {
+    return interaction.reply({
+      content: "⚠️ Ya se está creando tu ticket, espera un momento...",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+  cooldowns.set(interaction.user.id, 'processing_ticket');
+
+  await interaction.deferReply({ ephemeral: true });
+
+  // 🔍 Verificar tickets existentes
   const userTickets = guild.channels.cache.filter(
     c => c.name.startsWith(`${tipo}-${interaction.user.username}`)
   );
 
   if (userTickets.size > 0) {
-    return interaction.reply({
+    cooldowns.delete(interaction.user.id); // liberar lock
+    return interaction.editReply({
       content: `⚠️ Ya tienes un ticket abierto: ${userTickets.first()}`,
-      flags: MessageFlags.Ephemeral
     });
   }
 
@@ -378,54 +389,40 @@ if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select"
     channelName = `${tipo}-${interaction.user.username}-${ticketNumber}`;
   }
 
-  try {
-    const channel = await guild.channels.create({
-      name: channelName,
-      type: 0,
-      parent: cat,
-      permissionOverwrites: [
-        { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] },
-        { id: client.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageChannels] },
-        { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] },
-        { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] },
-        { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] }
-      ],
-    });
+  const channel = await guild.channels.create({
+    name: channelName,
+    type: 0,
+    parent: cat,
+    permissionOverwrites: [
+      { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+      { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] },
+      { id: client.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageChannels] },
+      { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] },
+      { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] },
+      { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] }
+    ],
+  });
 
-    const embedTicket = new EmbedBuilder()
-      .setTitle(label)
-      .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**. Un miembro del staff te atenderá pronto.`)
-      .setColor("Purple")
-      .setTimestamp();
+  const embedTicket = new EmbedBuilder()
+    .setTitle(label)
+    .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**. Un miembro del staff te atenderá pronto.`)
+    .setColor("Purple")
+    .setTimestamp();
 
-    const rowCerrar = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId("cerrar_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger)
-    );
+  const rowCerrar = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("cerrar_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger)
+  );
 
-    // 🔒 Intentar enviar el mensaje en el canal y manejar errores
-    await channel.send({
-      content: `<@&${MOD_ROLES.moderador}> <@&${MOD_ROLES.soporte}> <@&${MOD_ROLES.admin}>`,
-      embeds: [embedTicket],
-      components: [rowCerrar],
-      allowedMentions: { roles: [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin] }
-    }).catch(err => console.error("❌ Error al enviar mensaje al ticket:", err));
+  await channel.send({
+    content: `<@&${MOD_ROLES.moderador}> <@&${MOD_ROLES.soporte}> <@&${MOD_ROLES.admin}>`,
+    embeds: [embedTicket],
+    components: [rowCerrar],
+    allowedMentions: { roles: [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin] }
+  });
 
-    // ✅ Responder interacción SOLO UNA VEZ
-    if (!interaction.replied) {
-      await interaction.reply({ content: `✅ Ticket creado: ${channel}`, flags: MessageFlags.Ephemeral });
-    }
-
-  } catch (err) {
-    console.error("❌ Error al crear ticket:", err);
-    if (!interaction.replied) {
-      await interaction.reply({ content: "⚠️ Ocurrió un error al crear el ticket.", flags: MessageFlags.Ephemeral }).catch(() => {});
-    }
-  }
-
-  return;
+  cooldowns.delete(interaction.user.id); // liberar lock
+  await interaction.editReply({ content: `✅ Ticket creado: ${channel}` });
 }
-
     // ------------------- Botones ------------------- //
     if (interaction.isButton()) {
       const customId = interaction.customId;
