@@ -1,4 +1,3 @@
-// ------------------- Cargar variables de entorno ------------------- //
 require('dotenv').config();
 const {
   Client,
@@ -27,6 +26,7 @@ app.listen(PORT, () => console.log(`🌐 Servidor web activo en puerto ${PORT}`)
 // ------------------- Config ------------------- //
 const preguntas = JSON.parse(fs.readFileSync("preguntas.json", "utf8"));
 const LOG_CHANNEL_ID = "1422893357042110546";
+const LOG_CHANNEL_TRANSCRIPTS_ID = "1294340206337462415";
 const PUBLIC_CHANNEL_ID = "1422893357042110546";
 const RESET_LOG_CHANNEL_ID = "1424694967472754769";
 const LOGS_CHANNEL_ID = "1425162413690327040";
@@ -99,7 +99,7 @@ async function hacerPregunta(channel, usuario, pregunta, index, total) {
   });
 }
 
-// ------------------- Evento ClientReady ------------------- //
+// ------------------- Evento Ready ------------------- //
 client.on("ready", async () => {
   console.log(`✅ Bot iniciado como: ${client.user.tag}`);
   client.user.setPresence({
@@ -107,13 +107,16 @@ client.on("ready", async () => {
     status: "online",
   });
 
-  // Registrar comandos slash
+  // Registrar comandos
   const commands = [
     new SlashCommandBuilder().setName("setup-soporte").setDescription("Configura el sistema de soporte."),
     new SlashCommandBuilder()
       .setName("reset-whitelist")
       .setDescription("Resetea la whitelist de un usuario.")
-      .addUserOption(option => option.setName("usuario").setDescription("Usuario a resetear").setRequired(true)),
+      .addUserOption(opt => opt.setName("usuario").setDescription("Usuario a resetear").setRequired(true)),
+    new SlashCommandBuilder()
+      .setName("donaciones")
+      .setDescription("Muestra información sobre las donaciones."),
     new SlashCommandBuilder().setName("pilegales").setDescription("Muestra pautas legales."),
     new SlashCommandBuilder().setName("pnegocios").setDescription("Muestra pautas de negocios."),
     new SlashCommandBuilder().setName("pstaff").setDescription("Muestra pautas de staff."),
@@ -122,17 +125,13 @@ client.on("ready", async () => {
     new SlashCommandBuilder()
       .setName("addwhitelist")
       .setDescription("Añade un usuario a la whitelist.")
-      .addUserOption(option => option.setName("usuario").setDescription("Usuario a añadir").setRequired(true))
+      .addUserOption(opt => opt.setName("usuario").setDescription("Usuario a añadir").setRequired(true))
   ].map(cmd => cmd.toJSON());
 
   const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
-  try {
-    const GUILD_ID = "821091789325729803"; 
-    await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commands });
-    console.log("✅ Comandos registrados correctamente.");
-  } catch (err) {
-    console.error("❌ Error al registrar comandos:", err);
-  }
+  const GUILD_ID = "821091789325729803";
+  await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commands });
+  console.log("✅ Comandos registrados correctamente.");
 });
 
 // ------------------- Interacciones ------------------- //
@@ -140,6 +139,56 @@ client.on("interactionCreate", async (interaction) => {
   try {
     const guild = interaction.guild;
     if (!guild) return;
+
+    // ------------------- /reset-whitelist ------------------- //
+    if (interaction.isChatInputCommand() && interaction.commandName === "reset-whitelist") {
+      await interaction.deferReply({ ephemeral: true });
+      const usuario = interaction.options.getUser("usuario");
+      const miembro = await guild.members.fetch(usuario.id).catch(() => null);
+
+      if (!miembro) {
+        return interaction.editReply({ content: "⚠️ No se pudo encontrar al usuario en el servidor." });
+      }
+
+      try {
+        await miembro.roles.remove(ROLES.whitelist).catch(() => {});
+        await miembro.roles.add(ROLES.sinWhitelist).catch(() => {});
+      } catch (err) {
+        console.error(err);
+        return interaction.editReply({ content: "❌ Error al modificar los roles del usuario." });
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle("🔁 Whitelist Reseteada")
+        .setDescription(`El usuario ${usuario} ha sido reseteado correctamente de la whitelist.`)
+        .setColor("Orange")
+        .setTimestamp();
+
+      const logChannel = guild.channels.cache.get(RESET_LOG_CHANNEL_ID);
+      if (logChannel) logChannel.send({ embeds: [embed] }).catch(() => {});
+
+      await interaction.editReply({ content: "✅ Whitelist reseteada correctamente." });
+      return;
+    }
+
+    // ------------------- /donaciones ------------------- //
+    if (interaction.isChatInputCommand() && interaction.commandName === "donaciones") {
+      const embed = new EmbedBuilder()
+        .setTitle("💸 Donaciones - UNITY CITY")
+        .setDescription(
+          "¡Gracias por querer apoyar el servidor! ❤️\n\n" +
+          "Puedes colaborar mediante donaciones para mantener el servidor activo y mejorar la experiencia de juego.\n\n" +
+          "**Métodos disponibles:**\n" +
+          "• 💳 PayPal\n" +
+          "📩 Para poder realizar la donacion, deberas de enviar la cantidad por **AMIGOS Y FAMILIARES**."
+        )
+        .setColor("Purple")
+        .setFooter({ text: "UNITY CITY RP - Donaciones", iconURL: guild.iconURL() })
+        .setTimestamp();
+
+      await interaction.reply({ embeds: [embed] });
+      return;
+    }
 
     // ------------------- Comando /addwhitelist ------------------- //
 if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelist") {
@@ -397,12 +446,55 @@ const embedTicket = new EmbedBuilder()
     if (interaction.isButton()) {
       const customId = interaction.customId;
 
-      // Cerrar ticket
-      if (customId === "cerrar_ticket") {
-        await interaction.reply({ content: "⏳ Cerrando ticket en 5 segundos...", flags: MessageFlags.Ephemeral });
-        setTimeout(() => interaction.channel?.delete().catch(() => {}), 5000);
-        return;
+  // 🔒 Cerrar ticket con transcript
+  if (customId === "cerrar_ticket") {
+    await interaction.reply({ content: "⏳ Cerrando ticket en 5 segundos...", flags: MessageFlags.Ephemeral });
+
+    // Esperar 5 segundos antes de cerrar
+    setTimeout(async () => {
+      const channel = interaction.channel;
+      if (!channel) return;
+
+      try {
+        // Obtener mensajes del canal (máx 100)
+        const messages = await channel.messages.fetch({ limit: 100 });
+        const sorted = Array.from(messages.values()).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+
+        // Crear contenido del transcript
+        let transcriptContent = `Transcript del canal: #${channel.name}\nFecha de cierre: ${new Date().toLocaleString()}\n\n`;
+        for (const msg of sorted) {
+          const time = new Date(msg.createdTimestamp).toLocaleTimeString();
+          transcriptContent += `[${time}] ${msg.author.tag}: ${msg.content || "(embed/archivo)"}\n`;
+        }
+
+        // Guardar el transcript temporalmente
+        const filePath = `/tmp/${channel.name}_transcript.txt`;
+        fs.writeFileSync(filePath, transcriptContent, "utf8");
+
+        // Enviar al canal de logs
+        const logChannel = channel.guild.channels.cache.get(LOG_CHANNEL_TRANSCRIPTS_ID);
+        if (logChannel) {
+          const embed = new EmbedBuilder()
+            .setTitle("🗒️ Transcript de Ticket Cerrado")
+            .setDescription(`📁 Ticket cerrado: **#${channel.name}**\n👤 Cerrado por: ${interaction.user}`)
+            .setColor("Purple")
+            .setTimestamp();
+
+          await logChannel.send({ embeds: [embed], files: [filePath] });
+        }
+
+        // Eliminar el archivo temporal
+        fs.unlinkSync(filePath);
+
+        // Eliminar canal
+        await channel.delete().catch(() => {});
+      } catch (err) {
+        console.error("❌ Error generando transcript:", err);
       }
+    }, 5000);
+
+    return;
+  }
 
       // Whitelist
       if (customId === "whitelist") {
