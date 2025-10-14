@@ -358,19 +358,30 @@ if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select"
   const tipo = interaction.values[0];
   const { cat, label } = ticketMap[tipo];
 
-  // 🔍 Buscar tickets existentes del usuario en esa categoría
+  // 🔒 Lock temporal para evitar doble creación
+  if (cooldowns.has(interaction.user.id) && cooldowns.get(interaction.user.id) === 'processing_ticket') {
+    return interaction.reply({
+      content: "⚠️ Ya se está creando tu ticket, espera un momento...",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+  cooldowns.set(interaction.user.id, 'processing_ticket');
+
+  await interaction.deferReply({ ephemeral: true });
+
+  // 🔍 Verificar tickets existentes
   const userTickets = guild.channels.cache.filter(
     c => c.name.startsWith(`${tipo}-${interaction.user.username}`)
   );
 
   if (userTickets.size > 0) {
-    return interaction.reply({
+    cooldowns.delete(interaction.user.id); // liberar lock
+    return interaction.editReply({
       content: `⚠️ Ya tienes un ticket abierto: ${userTickets.first()}`,
-      flags: MessageFlags.Ephemeral
     });
   }
 
-  // ✅ Crear canal con numeración si existieran tickets previos (solo por si acaso)
+  // ✅ Crear canal con numeración si existieran tickets previos
   let ticketNumber = 1;
   let channelName = `${tipo}-${interaction.user.username}`;
   while (guild.channels.cache.find(c => c.name === channelName)) {
@@ -409,8 +420,8 @@ if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select"
     allowedMentions: { roles: [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin] }
   });
 
-  await interaction.reply({ content: `✅ Ticket creado: ${channel}`, flags: MessageFlags.Ephemeral });
-  return;
+  cooldowns.delete(interaction.user.id); // liberar lock
+  await interaction.editReply({ content: `✅ Ticket creado: ${channel}` });
 }
 
     // ------------------- Botones ------------------- //
