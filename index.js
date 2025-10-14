@@ -180,6 +180,7 @@ client.on("interactionCreate", async (interaction) => {
           "Puedes colaborar mediante donaciones para mantener el servidor activo y mejorar la experiencia de juego.\n\n" +
           "**Métodos disponibles:**\n" +
           "• 💳 PayPal\n" +
+          
           "📩 Para poder realizar la donacion, deberas de enviar la cantidad por **AMIGOS Y FAMILIARES**."
         )
         .setColor("Purple")
@@ -343,104 +344,74 @@ if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelis
       return;
     }
 
-    // ------------------- Ticket Select ------------------- //
-    if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
-      const ticketMap = {
-        soporte_general: { cat: SOPORTE_CATEGORY_ID, label: "🟢 Ticket de Soporte General" },
-        reportes: { cat: "1423746566610620568", label: "🐞 Ticket de Reportes" },
-        ck: { cat: "1423746747741765632", label: "💀 Ticket de CK" },
-        donaciones: { cat: "1423747380637073489", label: "💸 Ticket de Donaciones" },
-        facciones: { cat: "1423747506382311485", label: "🏢 Ticket de Facciones" },
-        postulacion: { cat: "1423747604495466536", label: "📋 Ticket de Postulación" }
-      };
-      const { cat, label } = ticketMap[interaction.values[0]];
+// ------------------- Ticket Select ------------------- //
+if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
+  const ticketMap = {
+    soporte_general: { cat: SOPORTE_CATEGORY_ID, label: "🟢 Ticket de Soporte General" },
+    reportes: { cat: "1423746566610620568", label: "🐞 Ticket de Reportes" },
+    ck: { cat: "1423746747741765632", label: "💀 Ticket de CK" },
+    donaciones: { cat: "1423747380637073489", label: "💸 Ticket de Donaciones" },
+    facciones: { cat: "1423747506382311485", label: "🏢 Ticket de Facciones" },
+    postulacion: { cat: "1423747604495466536", label: "📋 Ticket de Postulación" }
+  };
 
-      const channel = await guild.channels.create({
-        name: `${interaction.values[0]}-${interaction.user.username}`,
-        type: 0,
-        parent: cat,
-  permissionOverwrites: [
-    // 🚫 Todos fuera
-    { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+  const tipo = interaction.values[0];
+  const { cat, label } = ticketMap[tipo];
 
-    // 👤 Usuario que abre el ticket
-    {
-      id: interaction.user.id,
-      allow: [
-        PermissionsBitField.Flags.ViewChannel,
-        PermissionsBitField.Flags.SendMessages,
-        PermissionsBitField.Flags.AttachFiles,
-        PermissionsBitField.Flags.EmbedLinks
-      ]
-    },
+  // 🔍 Buscar tickets existentes del usuario en esa categoría
+  const userTickets = guild.channels.cache.filter(
+    c => c.name.startsWith(`${tipo}-${interaction.user.username}`)
+  );
 
-    // 🤖 Permisos del BOT
-    {
-      id: client.user.id,
-      allow: [
-        PermissionsBitField.Flags.ViewChannel,
-        PermissionsBitField.Flags.SendMessages,
-        PermissionsBitField.Flags.AttachFiles,
-        PermissionsBitField.Flags.EmbedLinks,
-        PermissionsBitField.Flags.ManageChannels
-      ]
-    },
+  if (userTickets.size > 0) {
+    return interaction.reply({
+      content: `⚠️ Ya tienes un ticket abierto: ${userTickets.first()}`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
 
-    // 🧑‍⚖️ Moderadores
-    {
-      id: MOD_ROLES.moderador,
-      allow: [
-        PermissionsBitField.Flags.ViewChannel,
-        PermissionsBitField.Flags.SendMessages,
-        PermissionsBitField.Flags.AttachFiles,
-        PermissionsBitField.Flags.EmbedLinks
-      ]
-    },
+  // ✅ Crear canal con numeración si existieran tickets previos (solo por si acaso)
+  let ticketNumber = 1;
+  let channelName = `${tipo}-${interaction.user.username}`;
+  while (guild.channels.cache.find(c => c.name === channelName)) {
+    ticketNumber++;
+    channelName = `${tipo}-${interaction.user.username}-${ticketNumber}`;
+  }
 
-    // 🧑‍🔧 Soporte
-    {
-      id: MOD_ROLES.soporte,
-      allow: [
-        PermissionsBitField.Flags.ViewChannel,
-        PermissionsBitField.Flags.SendMessages,
-        PermissionsBitField.Flags.AttachFiles,
-        PermissionsBitField.Flags.EmbedLinks
-      ]
-    },
+  const channel = await guild.channels.create({
+    name: channelName,
+    type: 0,
+    parent: cat,
+    permissionOverwrites: [
+      { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+      { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] },
+      { id: client.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageChannels] },
+      { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] },
+      { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] },
+      { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] }
+    ],
+  });
 
-    // 👑 Admins
-    {
-      id: MOD_ROLES.admin,
-      allow: [
-        PermissionsBitField.Flags.ViewChannel,
-        PermissionsBitField.Flags.SendMessages,
-        PermissionsBitField.Flags.AttachFiles,
-        PermissionsBitField.Flags.EmbedLinks
-      ]
-    }
-  ],
-});
+  const embedTicket = new EmbedBuilder()
+    .setTitle(label)
+    .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**. Un miembro del staff te atenderá pronto.`)
+    .setColor("Purple")
+    .setTimestamp();
 
-const embedTicket = new EmbedBuilder()
-  .setTitle(label)
-  .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**. Un miembro del staff te atenderá pronto.`)
-  .setColor("Purple")
-        .setTimestamp();
+  const rowCerrar = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("cerrar_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger)
+  );
 
-      const rowCerrar = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId("cerrar_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger)
-      );
+  await channel.send({
+    content: `<@&${MOD_ROLES.moderador}> <@&${MOD_ROLES.soporte}> <@&${MOD_ROLES.admin}>`,
+    embeds: [embedTicket],
+    components: [rowCerrar],
+    allowedMentions: { roles: [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin] }
+  });
 
-      await channel.send({
-        content: `<@&${MOD_ROLES.moderador}> <@&${MOD_ROLES.soporte}> <@&${MOD_ROLES.admin}>`,
-        embeds: [embedTicket],
-        components: [rowCerrar],
-        allowedMentions: { roles: [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin] }
-      });
-
-      await interaction.reply({ content: `✅ Ticket creado: ${channel}`, flags: MessageFlags.Ephemeral });
-      return;
-    }
+  await interaction.reply({ content: `✅ Ticket creado: ${channel}`, flags: MessageFlags.Ephemeral });
+  return;
+}
 
     // ------------------- Botones ------------------- //
     if (interaction.isButton()) {
