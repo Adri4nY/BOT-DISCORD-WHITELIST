@@ -468,34 +468,57 @@ if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select"
   }
 
       // Whitelist
-      if (customId === "whitelist") {
-        const userId = interaction.user.id;
-        const now = Date.now();
-        if (cooldowns.has(userId) && now - cooldowns.get(userId) < COOLDOWN_HORAS * 60 * 60 * 1000) {
-          const remaining = COOLDOWN_HORAS * 60 * 60 * 1000 - (now - cooldowns.get(userId));
-          const hours = Math.floor(remaining / (1000 * 60 * 60));
-          const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-          return interaction.reply({
-            content: `⚠️ Ya hiciste un intento de whitelist. Espera ${hours}h ${minutes}m.`,
-            flags: MessageFlags.Ephemeral
-          });
-        }
-        cooldowns.set(userId, now);
+if (customId === "whitelist") {
+  // Evitar doble click simultáneo
+  if (cooldowns.has(interaction.user.id) && cooldowns.get(interaction.user.id) === 'processing') {
+    return interaction.reply({
+      content: "⚠️ Ya se está creando tu ticket, espera un momento...",
+      flags: MessageFlags.Ephemeral
+    });
+  }
 
-        const channel = await guild.channels.create({
-          name: `whitelist-${interaction.user.username}`,
-          type: 0,
-          parent: WHITELIST_CATEGORY_ID,
-          permissionOverwrites: [
-            { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-            { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-            { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-            { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-            { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          ],
-        });
+  cooldowns.set(interaction.user.id, 'processing'); // marcar como en proceso
+  await interaction.deferReply({ ephemeral: true });
 
-        await interaction.reply({ content: `✅ Ticket de whitelist creado: ${channel}`, flags: MessageFlags.Ephemeral });
+  const userId = interaction.user.id;
+  const now = Date.now();
+
+  // Cooldown real
+  if (cooldowns.has(userId) && typeof cooldowns.get(userId) === 'number' && now - cooldowns.get(userId) < COOLDOWN_HORAS * 60 * 60 * 1000) {
+    cooldowns.delete(userId); // liberar lock
+    return interaction.editReply({
+      content: `⚠️ Ya hiciste un intento de whitelist. Espera un poco.`,
+    });
+  }
+
+  // Bloqueo de ticket duplicado
+  const userTickets = guild.channels.cache.filter(
+    c => c.name.startsWith(`whitelist-${interaction.user.username}`)
+  );
+  if (userTickets.size > 0) {
+    cooldowns.delete(userId);
+    return interaction.editReply({
+      content: `⚠️ Ya tienes un ticket de whitelist abierto: ${userTickets.first()}`,
+    });
+  }
+
+  // Crear canal
+  const channel = await guild.channels.create({
+    name: `whitelist-${interaction.user.username}`,
+    type: 0,
+    parent: WHITELIST_CATEGORY_ID,
+    permissionOverwrites: [
+      { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+      { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+      { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+      { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+      { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+    ],
+  });
+
+  cooldowns.set(userId, now); // cooldown real
+
+  await interaction.editReply({ content: `✅ Ticket de whitelist creado: ${channel}` });
 
         let puntaje = 0;
         for (let i = 0; i < preguntas.length; i++) {
