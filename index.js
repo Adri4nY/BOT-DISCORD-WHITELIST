@@ -477,7 +477,7 @@ if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select"
     return;
   }
 
-      // Whitelist
+     // Whitelist
 if (customId === "whitelist") {
   // Evitar doble click simultáneo
   if (cooldowns.has(interaction.user.id) && cooldowns.get(interaction.user.id) === 'processing') {
