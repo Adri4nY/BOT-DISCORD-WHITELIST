@@ -39,7 +39,6 @@ const ROLES = {
 };
 const MOD_ROLES = {
   moderador: "1226606346967973900",
-  superadmin: "1281934246327357491",
   soporte: "1226606408682700862",
   admin: "1203773772868620308"
 };
@@ -363,7 +362,7 @@ if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select"
 
   const tipo = interaction.values[0];
   const { cat, label } = ticketMap[tipo];
-  const encargadoDonaciones = "1437514920248916069"; // 🧾 ID del rol encargado de donaciones (CAMBIA ESTE ID)
+  const encargadoDonaciones = "1281934868410007653"; 
 
   // ✅ Prevenir tickets duplicados
   const existingTicket = guild.channels.cache.find(
