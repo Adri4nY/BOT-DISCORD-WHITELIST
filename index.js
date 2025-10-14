@@ -39,6 +39,7 @@ const ROLES = {
 };
 const MOD_ROLES = {
   moderador: "1226606346967973900",
+  superadmin: "1281934246327357491",
   soporte: "1226606408682700862",
   admin: "1203773772868620308"
 };
@@ -345,6 +346,7 @@ if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelis
     }
 
 // ------------------- Ticket Select ------------------- //
+// ------------------- Ticket Select ------------------- //
 if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
   const ticketMap = {
     soporte_general: { cat: SOPORTE_CATEGORY_ID, label: "🟢 Ticket de Soporte General" },
@@ -358,26 +360,15 @@ if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select"
   const tipo = interaction.values[0];
   const { cat, label } = ticketMap[tipo];
 
-  // 🔒 Lock temporal para evitar doble creación
-  if (cooldowns.has(interaction.user.id) && cooldowns.get(interaction.user.id) === 'processing_ticket') {
-    return interaction.reply({
-      content: "⚠️ Ya se está creando tu ticket, espera un momento...",
-      flags: MessageFlags.Ephemeral
-    });
-  }
-  cooldowns.set(interaction.user.id, 'processing_ticket');
-
-  await interaction.deferReply({ ephemeral: true });
-
-  // 🔍 Verificar tickets existentes
+  // 🔍 Evitar tickets duplicados
   const userTickets = guild.channels.cache.filter(
     c => c.name.startsWith(`${tipo}-${interaction.user.username}`)
   );
 
   if (userTickets.size > 0) {
-    cooldowns.delete(interaction.user.id); // liberar lock
-    return interaction.editReply({
+    return interaction.reply({
       content: `⚠️ Ya tienes un ticket abierto: ${userTickets.first()}`,
+      flags: MessageFlags.Ephemeral
     });
   }
 
@@ -389,39 +380,122 @@ if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select"
     channelName = `${tipo}-${interaction.user.username}-${ticketNumber}`;
   }
 
-  const channel = await guild.channels.create({
-    name: channelName,
-    type: 0,
-    parent: cat,
-    permissionOverwrites: [
+  try {
+    // ⚙️ Permisos base
+    const basePerms = [
       { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-      { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] },
-      { id: client.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks, PermissionsBitField.Flags.ManageChannels] },
-      { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] },
-      { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] },
-      { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles, PermissionsBitField.Flags.EmbedLinks] }
-    ],
-  });
+      {
+        id: interaction.user.id,
+        allow: [
+          PermissionsBitField.Flags.ViewChannel,
+          PermissionsBitField.Flags.SendMessages,
+          PermissionsBitField.Flags.AttachFiles,
+          PermissionsBitField.Flags.EmbedLinks
+        ]
+      },
+      {
+        id: client.user.id,
+        allow: [
+          PermissionsBitField.Flags.ViewChannel,
+          PermissionsBitField.Flags.SendMessages,
+          PermissionsBitField.Flags.AttachFiles,
+          PermissionsBitField.Flags.EmbedLinks,
+          PermissionsBitField.Flags.ManageChannels
+        ]
+      }
+    ];
 
-  const embedTicket = new EmbedBuilder()
-    .setTitle(label)
-    .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**. Un miembro del staff te atenderá pronto.`)
-    .setColor("Purple")
-    .setTimestamp();
+    // 👑 Permisos especiales según tipo de ticket
+    if (tipo === "donaciones") {
+      // Solo Super Admin o superior
+      basePerms.push({
+        id: MOD_ROLES.superadmin,
+        allow: [
+          PermissionsBitField.Flags.ViewChannel,
+          PermissionsBitField.Flags.SendMessages,
+          PermissionsBitField.Flags.AttachFiles,
+          PermissionsBitField.Flags.EmbedLinks
+        ]
+      });
+    } else {
+      // Tickets normales
+      basePerms.push(
+        {
+          id: MOD_ROLES.moderador,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages,
+            PermissionsBitField.Flags.AttachFiles,
+            PermissionsBitField.Flags.EmbedLinks
+          ]
+        },
+        {
+          id: MOD_ROLES.soporte,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages,
+            PermissionsBitField.Flags.AttachFiles,
+            PermissionsBitField.Flags.EmbedLinks
+          ]
+        },
+        {
+          id: MOD_ROLES.admin,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages,
+            PermissionsBitField.Flags.AttachFiles,
+            PermissionsBitField.Flags.EmbedLinks
+          ]
+        }
+      );
+    }
 
-  const rowCerrar = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("cerrar_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger)
-  );
+    const channel = await guild.channels.create({
+      name: channelName,
+      type: 0,
+      parent: cat,
+      permissionOverwrites: basePerms
+    });
 
-  await channel.send({
-    content: `<@&${MOD_ROLES.moderador}> <@&${MOD_ROLES.soporte}> <@&${MOD_ROLES.admin}>`,
-    embeds: [embedTicket],
-    components: [rowCerrar],
-    allowedMentions: { roles: [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin] }
-  });
+    const embedTicket = new EmbedBuilder()
+      .setTitle(label)
+      .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**. Un miembro del staff te atenderá pronto.`)
+      .setColor("Purple")
+      .setTimestamp();
 
-  cooldowns.delete(interaction.user.id); // liberar lock
-  await interaction.editReply({ content: `✅ Ticket creado: ${channel}` });
+    const rowCerrar = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("cerrar_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger)
+    );
+
+    // 📨 Enviar mensaje en el canal
+    const mentionRoles = tipo === "donaciones"
+      ? `<@&${MOD_ROLES.superadmin}>`
+      : `<@&${MOD_ROLES.moderador}> <@&${MOD_ROLES.soporte}> <@&${MOD_ROLES.admin}>`;
+
+    await channel.send({
+      content: mentionRoles,
+      embeds: [embedTicket],
+      components: [rowCerrar],
+      allowedMentions: {
+        roles:
+          tipo === "donaciones"
+            ? [MOD_ROLES.superadmin]
+            : [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin]
+      }
+    }).catch(err => console.error("❌ Error al enviar mensaje al ticket:", err));
+
+    if (!interaction.replied) {
+      await interaction.reply({ content: `✅ Ticket creado: ${channel}`, flags: MessageFlags.Ephemeral });
+    }
+
+  } catch (err) {
+    console.error("❌ Error al crear ticket:", err);
+    if (!interaction.replied) {
+      await interaction.reply({ content: "⚠️ Ocurrió un error al crear el ticket.", flags: MessageFlags.Ephemeral }).catch(() => {});
+    }
+  }
+
+  return;
 }
     // ------------------- Botones ------------------- //
     if (interaction.isButton()) {
