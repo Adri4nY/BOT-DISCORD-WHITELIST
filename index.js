@@ -569,7 +569,7 @@ if (customId === "cerrar_ticket") {
 
   return;
 }
-     // Whitelist
+// Whitelist
 if (customId === "whitelist") {
   // Evitar doble click simultáneo
   if (cooldowns.has(interaction.user.id) && cooldowns.get(interaction.user.id) === 'processing') {
@@ -621,6 +621,39 @@ if (customId === "whitelist") {
   cooldowns.set(userId, now); // cooldown real
 
   await interaction.editReply({ content: `✅ Ticket de whitelist creado: ${channel}` });
+
+        let puntaje = 0;
+        for (let i = 0; i < preguntas.length; i++) {
+          const respuesta = await hacerPregunta(channel, interaction.user, preguntas[i], i, preguntas.length);
+          if (respuesta && respuesta === preguntas[i].respuesta) puntaje++;
+        }
+
+        const aprobado = puntaje >= 9;
+        const resultadoEmbed = new EmbedBuilder()
+          .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
+          .setDescription(aprobado
+            ? `🎉 ¡Felicidades ${interaction.user}, Tu examen de whitelist ha sido aprobado. ¡Disfruta del servidor!\n**Puntaje:** ${puntaje}/${preguntas.length}`
+            : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist, en 6h tendras otro intento. ¡Suerte la proxima vez!.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
+          .setColor(aprobado ? "Green" : "Red");
+
+        const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+        if (logChannel) logChannel.send({ embeds: [resultadoEmbed] });
+        await channel.send({ embeds: [resultadoEmbed] });
+
+        if (aprobado) {
+          try {
+            const member = await guild.members.fetch(interaction.user.id);
+            await member.roles.add(ROLES.whitelist);
+            await member.roles.remove(ROLES.sinWhitelist);
+            await channel.send("🎉 ¡Has recibido el rol de **Whitelist**!");
+          } catch (err) {
+            console.error("❌ Error al asignar rol:", err);
+            await channel.send("⚠️ Error al asignar rol, avisa a un staff.");
+          }
+        }
+
+        setTimeout(() => channel.delete().catch(() => {}), 30000);
+        return;
       }
     }
   } catch (error) {
