@@ -510,55 +510,65 @@ if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select"
       const customId = interaction.customId;
 
   // 🔒 Cerrar ticket con transcript
-  if (customId === "cerrar_ticket") {
-    await interaction.reply({ content: "⏳ Cerrando ticket en 5 segundos...", flags: MessageFlags.Ephemeral });
+if (customId === "cerrar_ticket") {
+  await interaction.reply({
+    content: "⏳ Cerrando ticket en 5 segundos...",
+    flags: MessageFlags.Ephemeral
+  });
 
-    // Esperar 5 segundos antes de cerrar
-    setTimeout(async () => {
-      const channel = interaction.channel;
-      if (!channel) return;
+  setTimeout(async () => {
+    const channel = interaction.channel;
+    if (!channel) return;
 
-      try {
-        // Obtener mensajes del canal (máx 100)
-        const messages = await channel.messages.fetch({ limit: 100 });
-        const sorted = Array.from(messages.values()).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+    try {
+      // Obtener mensajes (máx 100)
+      const messages = await channel.messages.fetch({ limit: 100 });
+      const sorted = Array.from(messages.values()).sort(
+        (a, b) => a.createdTimestamp - b.createdTimestamp
+      );
 
-        // Crear contenido del transcript
-        let transcriptContent = `Transcript del canal: #${channel.name}\nFecha de cierre: ${new Date().toLocaleString()}\n\n`;
-        for (const msg of sorted) {
-          const time = new Date(msg.createdTimestamp).toLocaleTimeString();
-          transcriptContent += `[${time}] ${msg.author.tag}: ${msg.content || "(embed/archivo)"}\n`;
-        }
-
-        // Guardar el transcript temporalmente
-        const filePath = `/tmp/${channel.name}_transcript.txt`;
-        fs.writeFileSync(filePath, transcriptContent, "utf8");
-
-        // Enviar al canal de logs
-        const logChannel = channel.guild.channels.cache.get(LOG_CHANNEL_TRANSCRIPTS_ID);
-        if (logChannel) {
-          const embed = new EmbedBuilder()
-            .setTitle("🗒️ Transcript de Ticket Cerrado")
-            .setDescription(`📁 Ticket cerrado: **#${channel.name}**\n👤 Cerrado por: ${interaction.user}`)
-            .setColor("Purple")
-            .setTimestamp();
-
-          await logChannel.send({ embeds: [embed], files: [filePath] });
-        }
-
-        // Eliminar el archivo temporal
-        fs.unlinkSync(filePath);
-
-        // Eliminar canal
-        await channel.delete().catch(() => {});
-      } catch (err) {
-        console.error("❌ Error generando transcript:", err);
+      // Crear el contenido del transcript
+      let transcriptContent = `Transcript del canal: #${channel.name}\nFecha de cierre: ${new Date().toLocaleString()}\n\n`;
+      for (const msg of sorted) {
+        const time = new Date(msg.createdTimestamp).toLocaleTimeString();
+        transcriptContent += `[${time}] ${msg.author?.tag || "Sistema"}: ${msg.content || "(embed/archivo)"}\n`;
       }
-    }, 5000);
 
-    return;
-  }
+      // Guardar el archivo en una ruta segura local
+      const safePath = `./${channel.name}_transcript.txt`;
+      fs.writeFileSync(safePath, transcriptContent, "utf8");
 
+      // Enviar el transcript al canal de logs
+      const logChannel = channel.guild.channels.cache.get(LOG_CHANNEL_TRANSCRIPTS_ID);
+      if (logChannel) {
+        const embed = new EmbedBuilder()
+          .setTitle("🗒️ Transcript de Ticket Cerrado")
+          .setDescription(`📁 Ticket cerrado: **#${channel.name}**\n👤 Cerrado por: ${interaction.user}`)
+          .setColor("Purple")
+          .setTimestamp();
+
+        await logChannel.send({ embeds: [embed], files: [safePath] });
+      }
+
+      // Borrar el archivo local
+      fs.unlinkSync(safePath);
+
+      // Intentar borrar el canal
+      await channel.delete().catch(err => {
+        console.error("❌ Error eliminando canal:", err);
+      });
+
+    } catch (err) {
+      console.error("❌ Error al cerrar ticket:", err);
+      await interaction.followUp({
+        content: "⚠️ Hubo un error al generar el transcript o cerrar el canal.",
+        flags: MessageFlags.Ephemeral
+      }).catch(() => {});
+    }
+  }, 5000);
+
+  return;
+}
      // Whitelist
 if (customId === "whitelist") {
   // Evitar doble click simultáneo
