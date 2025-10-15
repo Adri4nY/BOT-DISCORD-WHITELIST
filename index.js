@@ -44,6 +44,7 @@ const MOD_ROLES = {
   admin: "1203773772868620308"
 };
 const cooldowns = new Map();
+const processing = new Set();
 
 // ------------------- Cliente Discord ------------------- //
 const client = new Client({
