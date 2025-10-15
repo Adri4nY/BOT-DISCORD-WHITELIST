@@ -30,6 +30,7 @@ const LOG_CHANNEL_TRANSCRIPTS_ID = "1294340206337462415";
 const PUBLIC_CHANNEL_ID = "1422893357042110546";
 const RESET_LOG_CHANNEL_ID = "1424694967472754769";
 const LOGS_CHANNEL_ID = "1425162413690327040";
+const ROL_ENTREVISTADOR = "1428011770890555492";
 const WHITELIST_CATEGORY_ID = "1422897937427464203";
 const SOPORTE_CATEGORY_ID = "1422898157829881926";
 const COOLDOWN_HORAS = 6;
@@ -191,26 +192,33 @@ client.on("interactionCreate", async (interaction) => {
       return;
     }
 
-    // ------------------- Comando /addwhitelist ------------------- //
+// ------------------- Comando /addwhitelist ------------------- //
 if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelist") {
   const member = await guild.members.fetch(interaction.user.id);
-  const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
 
-  if (!allowedRoles.some(role => member.roles.cache.has(role))) {
+  // ✅ Solo rol Entrevistador puede usarlo
+  if (!member.roles.cache.has(ROL_ENTREVISTADOR)) {
     return interaction.reply({
-      content: "❌ No tienes permiso para usar este comando. Solo Staff puede hacerlo.",
+      content: "❌ No tienes permiso para usar este comando. Solo los entrevistadores pueden hacerlo.",
       flags: MessageFlags.Ephemeral
     });
   }
 
   const usuario = interaction.options.getUser("usuario");
-  const miembro = await guild.members.fetch(usuario.id);
+  const miembro = await guild.members.fetch(usuario.id).catch(() => null);
+
+  if (!miembro) {
+    return interaction.reply({
+      content: "⚠️ No se pudo encontrar al usuario en el servidor.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
 
   await miembro.roles.add(ROLES.whitelist).catch(() => {});
   await miembro.roles.remove(ROLES.sinWhitelist).catch(() => {});
 
   // Canal público
-  const publicChannel = guild.channels.cache.get(PUBLIC_CHANNEL_ID); 
+  const publicChannel = guild.channels.cache.get(PUBLIC_CHANNEL_ID);
   if (publicChannel) {
     const embed = new EmbedBuilder()
       .setTitle("✅ Whitelist Añadida")
@@ -221,8 +229,10 @@ if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelis
     publicChannel.send({ embeds: [embed] });
   }
 
-  // Mensaje efímero al que ejecutó el comando
-  await interaction.reply({ content: "✅ Usuario añadido a la whitelist correctamente.", ephemeral: true });
+  await interaction.reply({
+    content: "✅ Usuario añadido a la whitelist correctamente.",
+    flags: MessageFlags.Ephemeral
+  });
 
   // Log de staff
   const logChannel = guild.channels.cache.get(LOGS_CHANNEL_ID);
