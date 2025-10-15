@@ -141,36 +141,45 @@ client.on("interactionCreate", async (interaction) => {
     const guild = interaction.guild;
     if (!guild) return;
 
-    // ------------------- /reset-whitelist ------------------- //
-    if (interaction.isChatInputCommand() && interaction.commandName === "reset-whitelist") {
-      await interaction.deferReply({ ephemeral: true });
-      const usuario = interaction.options.getUser("usuario");
-      const miembro = await guild.members.fetch(usuario.id).catch(() => null);
+// ------------------- /reset-whitelist ------------------- //
+if (interaction.isChatInputCommand() && interaction.commandName === "reset-whitelist") {
+  await interaction.deferReply({ ephemeral: true });
+  const member = await guild.members.fetch(interaction.user.id);
 
-      if (!miembro) {
-        return interaction.editReply({ content: "⚠️ No se pudo encontrar al usuario en el servidor." });
-      }
+  // ✅ Solo Entrevistador o Admin pueden usarlo
+  if (!member.roles.cache.has(ROL_ENTREVISTADOR) && !member.roles.cache.has(MOD_ROLES.admin)) {
+    return interaction.editReply({
+      content: "❌ No tienes permiso para usar este comando. Solo los entrevistadores o administradores pueden hacerlo."
+    });
+  }
 
-      try {
-        await miembro.roles.remove(ROLES.whitelist).catch(() => {});
-        await miembro.roles.add(ROLES.sinWhitelist).catch(() => {});
-      } catch (err) {
-        console.error(err);
-        return interaction.editReply({ content: "❌ Error al modificar los roles del usuario." });
-      }
+  const usuario = interaction.options.getUser("usuario");
+  const miembro = await guild.members.fetch(usuario.id).catch(() => null);
 
-      const embed = new EmbedBuilder()
-        .setTitle("🔁 Whitelist Reseteada")
-        .setDescription(`El usuario ${usuario} ha sido reseteado correctamente de la whitelist.`)
-        .setColor("Orange")
-        .setTimestamp();
+  if (!miembro) {
+    return interaction.editReply({ content: "⚠️ No se pudo encontrar al usuario en el servidor." });
+  }
 
-      const logChannel = guild.channels.cache.get(RESET_LOG_CHANNEL_ID);
-      if (logChannel) logChannel.send({ embeds: [embed] }).catch(() => {});
+  try {
+    await miembro.roles.remove(ROLES.whitelist).catch(() => {});
+    await miembro.roles.add(ROLES.sinWhitelist).catch(() => {});
+  } catch (err) {
+    console.error(err);
+    return interaction.editReply({ content: "❌ Error al modificar los roles del usuario." });
+  }
 
-      await interaction.editReply({ content: "✅ Whitelist reseteada correctamente." });
-      return;
-    }
+  const embed = new EmbedBuilder()
+    .setTitle("🔁 Whitelist Reseteada")
+    .setDescription(`El usuario ${usuario} ha sido reseteado correctamente de la whitelist.`)
+    .setColor("Orange")
+    .setTimestamp();
+
+  const logChannel = guild.channels.cache.get(RESET_LOG_CHANNEL_ID);
+  if (logChannel) logChannel.send({ embeds: [embed] }).catch(() => {});
+
+  await interaction.editReply({ content: "✅ Whitelist reseteada correctamente." });
+  return;
+}
 
     // ------------------- /donaciones ------------------- //
     if (interaction.isChatInputCommand() && interaction.commandName === "donaciones") {
