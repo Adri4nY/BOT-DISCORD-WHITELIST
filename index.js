@@ -43,8 +43,31 @@ const MOD_ROLES = {
   soporte: "1226606408682700862",
   admin: "1203773772868620308"
 };
+
+// ------------------- Cooldowns persistentes ------------------- //
+const COOLDOWN_HORAS = 6;
+const COOLDOWN_FILE = "cooldowns.json";
 const cooldowns = new Map();
 
+// Cargar cooldowns previos desde el archivo si existe
+if (fs.existsSync(COOLDOWN_FILE)) {
+  try {
+    const data = JSON.parse(fs.readFileSync(COOLDOWN_FILE, "utf8"));
+    for (const [id, timestamp] of data) cooldowns.set(id, timestamp);
+    console.log(`🕒 Cooldowns cargados: ${cooldowns.size}`);
+  } catch (err) {
+    console.error("⚠️ Error al leer cooldowns.json:", err);
+  }
+}
+
+// Función auxiliar para guardar los cooldowns
+function guardarCooldowns() {
+  try {
+    fs.writeFileSync(COOLDOWN_FILE, JSON.stringify([...cooldowns]), "utf8");
+  } catch (err) {
+    console.error("⚠️ Error al guardar cooldowns.json:", err);
+  }
+}
 // ------------------- Cliente Discord ------------------- //
 const client = new Client({
   intents: [
@@ -587,38 +610,40 @@ if (customId === "cerrar_ticket") {
 
   return;
 }
-// Whitelist
 if (customId === "whitelist") {
+  const userId = interaction.user.id;
+  const now = Date.now();
+  const cooldownMs = COOLDOWN_HORAS * 60 * 60 * 1000;
+
   // Evitar doble click simultáneo
-  if (cooldowns.has(interaction.user.id) && cooldowns.get(interaction.user.id) === 'processing') {
+  if (cooldowns.get(userId) === "processing") {
     return interaction.reply({
       content: "⚠️ Ya se está creando tu ticket, espera un momento...",
       flags: MessageFlags.Ephemeral
     });
   }
 
-  cooldowns.set(interaction.user.id, 'processing'); // marcar como en proceso
-  await interaction.deferReply({ ephemeral: true });
-
-  const userId = interaction.user.id;
-  const now = Date.now();
-
-  // Cooldown real
-  if (cooldowns.has(userId) && typeof cooldowns.get(userId) === 'number' && now - cooldowns.get(userId) < COOLDOWN_HORAS * 60 * 60 * 1000) {
-    cooldowns.delete(userId); // liberar lock
-    return interaction.editReply({
-      content: `⚠️ Ya hiciste un intento de whitelist. Espera un poco.`,
+  // Verificar cooldown activo
+  if (cooldowns.has(userId) && typeof cooldowns.get(userId) === "number" && now - cooldowns.get(userId) < cooldownMs) {
+    const restante = cooldownMs - (now - cooldowns.get(userId));
+    const horas = Math.floor(restante / (1000 * 60 * 60));
+    const minutos = Math.floor((restante % (1000 * 60 * 60)) / (1000 * 60));
+    return interaction.reply({
+      content: `⚠️ Ya hiciste un intento de whitelist. Puedes volver a intentarlo en **${horas}h ${minutos}min**.`,
+      flags: MessageFlags.Ephemeral
     });
   }
 
-  // Bloqueo de ticket duplicado
-  const userTickets = guild.channels.cache.filter(
-    c => c.name.startsWith(`whitelist-${interaction.user.username}`)
-  );
-  if (userTickets.size > 0) {
+  // Marcar como en proceso
+  cooldowns.set(userId, "processing");
+  await interaction.deferReply({ ephemeral: true });
+
+  // Evitar ticket duplicado
+  const existing = guild.channels.cache.find(c => c.name.startsWith(`whitelist-${interaction.user.username}`));
+  if (existing) {
     cooldowns.delete(userId);
     return interaction.editReply({
-      content: `⚠️ Ya tienes un ticket de whitelist abierto: ${userTickets.first()}`,
+      content: `⚠️ Ya tienes un ticket de whitelist abierto: ${existing}`,
     });
   }
 
@@ -636,43 +661,50 @@ if (customId === "whitelist") {
     ],
   });
 
-  cooldowns.set(userId, now); // cooldown real
-
   await interaction.editReply({ content: `✅ Ticket de whitelist creado: ${channel}` });
 
-        let puntaje = 0;
-        for (let i = 0; i < preguntas.length; i++) {
-          const respuesta = await hacerPregunta(channel, interaction.user, preguntas[i], i, preguntas.length);
-          if (respuesta && respuesta === preguntas[i].respuesta) puntaje++;
-        }
+  // 🧩 Preguntas
+  let puntaje = 0;
+  for (let i = 0; i < preguntas.length; i++) {
+    const respuesta = await hacerPregunta(channel, interaction.user, preguntas[i], i, preguntas.length);
+    if (respuesta && respuesta === preguntas[i].respuesta) puntaje++;
+  }
 
-        const aprobado = puntaje >= 9;
-        const resultadoEmbed = new EmbedBuilder()
-          .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
-          .setDescription(aprobado
-            ? `🎉 ¡Felicidades ${interaction.user}, Tu examen de whitelist ha sido aprobado. ¡Disfruta del servidor!\n**Puntaje:** ${puntaje}/${preguntas.length}`
-            : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist, en 6h tendras otro intento. ¡Suerte la proxima vez!.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
-          .setColor(aprobado ? "Green" : "Red");
+  const aprobado = puntaje >= 9;
+  const resultadoEmbed = new EmbedBuilder()
+    .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
+    .setDescription(
+      aprobado
+        ? `🎉 ¡Felicidades ${interaction.user}, has aprobado la whitelist!\n**Puntaje:** ${puntaje}/${preguntas.length}`
+        : `😢 Lo sentimos ${interaction.user}, no has aprobado la whitelist.\nPodrás volver a intentarlo en **${COOLDOWN_HORAS}h**.\n**Puntaje:** ${puntaje}/${preguntas.length}`
+    )
+    .setColor(aprobado ? "Green" : "Red");
 
-        const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
-        if (logChannel) logChannel.send({ embeds: [resultadoEmbed] });
-        await channel.send({ embeds: [resultadoEmbed] });
+  const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+  if (logChannel) logChannel.send({ embeds: [resultadoEmbed] });
+  await channel.send({ embeds: [resultadoEmbed] });
 
-        if (aprobado) {
-          try {
-            const member = await guild.members.fetch(interaction.user.id);
-            await member.roles.add(ROLES.whitelist);
-            await member.roles.remove(ROLES.sinWhitelist);
-            await channel.send("🎉 ¡Has recibido el rol de **Whitelist**!");
-          } catch (err) {
-            console.error("❌ Error al asignar rol:", err);
-            await channel.send("⚠️ Error al asignar rol, avisa a un staff.");
-          }
-        }
+  // ✅ Si aprueba, rol inmediato
+  if (aprobado) {
+    try {
+      const member = await guild.members.fetch(interaction.user.id);
+      await member.roles.add(ROLES.whitelist);
+      await member.roles.remove(ROLES.sinWhitelist);
+      await channel.send("🎉 ¡Has recibido el rol de **Whitelist**!");
+    } catch (err) {
+      console.error("❌ Error al asignar rol:", err);
+      await channel.send("⚠️ Error al asignar rol, avisa a un staff.");
+    }
+  }
 
-        setTimeout(() => channel.delete().catch(() => {}), 30000);
-        return;
-      }
+  // 🕒 Aplicar cooldown siempre (aprobado o no)
+  cooldowns.set(userId, now);
+  guardarCooldowns();
+
+  // 🧹 Cerrar canal a los 30 segundos
+  setTimeout(() => channel.delete().catch(() => {}), 30000);
+  return;
+}
     }
   } catch (error) {
     console.error("❌ Error en interactionCreate:", error);
