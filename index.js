@@ -655,7 +655,7 @@ if (customId === "cerrar_ticket") {
           }
 
           cooldowns.set(userId, Date.now());
-          setTimeout(() => channel.delete().catch(() => {}), 30000);
+          setTimeout(() => channel.delete().catch(() => {}), 10000);
 
         } finally {
           processing.delete(userId);
