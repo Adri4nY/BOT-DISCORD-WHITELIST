@@ -189,8 +189,7 @@ if (interaction.isChatInputCommand() && interaction.commandName === "reset-white
           "¡Gracias por querer apoyar el servidor! ❤️\n\n" +
           "Puedes colaborar mediante donaciones para mantener el servidor activo y mejorar la experiencia de juego.\n\n" +
           "**Métodos disponibles:**\n" +
-          "• 💳 PayPal\n" +
-          
+          "• 💳 https://paypal.me/UnityCityrolplay\n\n" +
           "📩 Para poder realizar la donacion, deberas de enviar la cantidad por **AMIGOS Y FAMILIARES**."
         )
         .setColor("Purple")
@@ -326,7 +325,7 @@ if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelis
           embed.addFields(
             { name: "🧑‍💻 Nombre OOC", value: "Tu nombre fuera del rol", inline: false },
             { name: "🎂 Edad OOC", value: "Tu edad real", inline: false },
-            { name: "⏱️ Horas roleadas en FiveM", value: "Cantidad de horas roleadas", inline: false },
+            { name: "⏱️ Horas roleadas en FiveM", value: "Cantidad de horas roleadas (mínimo 600 horas de rol FiveM )", inline: false },
             { name: "⏳ Tiempo en el servidor", value: "¿Cuánto tiempo llevas en el servidor?", inline: false },
             { name: "🎮 URL de Steam", value: "Link a tu cuenta de Steam", inline: false },
             { name: "📺 Link de la red social", value: "Red social donde vas a streamear el servidor", inline: false }
