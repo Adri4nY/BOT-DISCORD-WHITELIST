@@ -588,91 +588,115 @@ if (customId === "cerrar_ticket") {
 
   return;
 }
-      // ------------------- WHITELIST ------------------- //
-      if (customId === "whitelist") {
-        const userId = interaction.user.id;
-        const now = Date.now();
+// ------------------- WHITELIST ------------------- //
+if (customId === "whitelist") {
+  const userId = interaction.user.id;
+  const now = Date.now();
 
-        // Evitar doble click simultáneo
-        if (processing.has(userId)) {
-          return interaction.reply({ content: "⚠️ Ya se está creando tu whitelist, espera un momento...", flags: MessageFlags.Ephemeral });
-        }
-
-        // Cooldown 6h
-        if (cooldowns.has(userId) && now - cooldowns.get(userId) < COOLDOWN_HORAS * 60 * 60 * 1000) {
-          const remaining = Math.ceil((COOLDOWN_HORAS * 60 * 60 * 1000 - (now - cooldowns.get(userId))) / 60000);
-          return interaction.reply({ content: `⚠️ Ya hiciste un intento de whitelist. Espera ${remaining} minuto(s).`, flags: MessageFlags.Ephemeral });
-        }
-
-        processing.add(userId);
-        await interaction.deferReply({ ephemeral: true });
-
-        try {
-          // Evitar tickets duplicados
-          const userTickets = guild.channels.cache.filter(c => c.name.startsWith(`whitelist-${interaction.user.username}`));
-          if (userTickets.size > 0) return interaction.editReply({ content: `⚠️ Ya tienes un ticket de whitelist abierto: ${userTickets.first()}` });
-
-          // Crear canal
-          const channel = await guild.channels.create({
-            name: `whitelist-${interaction.user.username}`,
-            type: 0,
-            parent: WHITELIST_CATEGORY_ID,
-            permissionOverwrites: [
-              { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-              { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-              { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-              { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-              { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-            ],
-          });
-
-          await interaction.editReply({ content: `✅ Ticket de whitelist creado: ${channel}` });
-
-          // --- Preguntas ---
-          let puntaje = 0;
-          for (let i = 0; i < preguntas.length; i++) {
-            const respuesta = await hacerPregunta(channel, interaction.user, preguntas[i], i, preguntas.length);
-            if (respuesta && respuesta === preguntas[i].respuesta) puntaje++;
-          }
-
-          const aprobado = puntaje >= 9;
-          const resultadoEmbed = new EmbedBuilder()
-            .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
-            .setDescription(aprobado
-              ? `🎉 ¡Felicidades ${interaction.user}, tu examen ha sido aprobado!\n**Puntaje:** ${puntaje}/${preguntas.length}`
-              : `😢 Lo sentimos ${interaction.user}, no has aprobado. Podrás intentarlo de nuevo en 6h.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
-            .setColor(aprobado ? "Green" : "Red");
-
-          const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
-          if (logChannel) logChannel.send({ embeds: [resultadoEmbed] });
-          await channel.send({ embeds: [resultadoEmbed] });
-
-          if (aprobado) {
-            const member = await guild.members.fetch(userId);
-            await member.roles.add(ROLES.whitelist);
-            await member.roles.remove(ROLES.sinWhitelist);
-            await channel.send("🎉 ¡Has recibido el rol de **Whitelist**!");
-          }
-
-          cooldowns.set(userId, Date.now());
-          setTimeout(() => channel.delete().catch(() => {}), 10000);
-
-        } finally {
-          processing.delete(userId);
-        }
-      }
-    }
-
-  } catch (error) {
-    console.error("❌ Error en interactionCreate:", error);
-    if (interaction.replied || interaction.deferred) {
-      interaction.followUp({ content: "⚠️ Ocurrió un error.", flags: MessageFlags.Ephemeral }).catch(() => {});
-    } else {
-      interaction.reply({ content: "⚠️ Ocurrió un error.", flags: MessageFlags.Ephemeral }).catch(() => {});
-    }
+  // Evitar doble click simultáneo
+  if (processing.has(userId)) {
+    return interaction.reply({
+      content: "⚠️ Ya se está creando tu whitelist, espera un momento...",
+      flags: MessageFlags.Ephemeral
+    });
   }
-});
 
+  // Cooldown 6h
+  if (
+    cooldowns.has(userId) &&
+    now - cooldowns.get(userId) < COOLDOWN_HORAS * 60 * 60 * 1000
+  ) {
+    const remaining = Math.ceil(
+      (COOLDOWN_HORAS * 60 * 60 * 1000 -
+        (now - cooldowns.get(userId))) / 60000
+    );
+    return interaction.reply({
+      content: `⚠️ Ya hiciste un intento de whitelist. Espera ${remaining} minuto(s).`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  processing.add(userId);
+  await interaction.deferReply({ ephemeral: true });
+
+  // 🧹 Limpieza automática a los 2 minutos (por seguridad)
+  setTimeout(() => {
+    if (processing.has(userId)) {
+      console.log(`🧽 Liberando usuario atascado en whitelist: ${userId}`);
+      processing.delete(userId);
+    }
+  }, 120000);
+
+  try {
+    console.log(`🎬 Iniciando whitelist para ${interaction.user.tag} (${userId})`);
+
+    // Evitar tickets duplicados
+    const userTickets = guild.channels.cache.filter(c =>
+      c.name.startsWith(`whitelist-${interaction.user.username}`)
+    );
+    if (userTickets.size > 0) {
+      processing.delete(userId);
+      return interaction.editReply({
+        content: `⚠️ Ya tienes un ticket de whitelist abierto: ${userTickets.first()}`
+      });
+    }
+
+    // Crear canal
+    const channel = await guild.channels.create({
+      name: `whitelist-${interaction.user.username}`,
+      type: 0,
+      parent: WHITELIST_CATEGORY_ID,
+      permissionOverwrites: [
+        { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+        { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+        { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+        { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+      ],
+    });
+
+    await interaction.editReply({ content: `✅ Ticket de whitelist creado: ${channel}` });
+
+    // --- Preguntas ---
+    let puntaje = 0;
+    for (let i = 0; i < preguntas.length; i++) {
+      const respuesta = await hacerPregunta(channel, interaction.user, preguntas[i], i, preguntas.length);
+      if (respuesta && respuesta === preguntas[i].respuesta) puntaje++;
+    }
+
+    const aprobado = puntaje >= 9;
+    const resultadoEmbed = new EmbedBuilder()
+      .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
+      .setDescription(aprobado
+        ? `🎉 ¡Felicidades ${interaction.user}, tu examen ha sido aprobado!\n**Puntaje:** ${puntaje}/${preguntas.length}`
+        : `😢 Lo sentimos ${interaction.user}, no has aprobado. Podrás intentarlo de nuevo en 6h.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
+      .setColor(aprobado ? "Green" : "Red");
+
+    const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+    if (logChannel) logChannel.send({ embeds: [resultadoEmbed] });
+    await channel.send({ embeds: [resultadoEmbed] });
+
+    if (aprobado) {
+      const member = await guild.members.fetch(userId);
+      await member.roles.add(ROLES.whitelist);
+      await member.roles.remove(ROLES.sinWhitelist);
+      await channel.send("🎉 ¡Has recibido el rol de **Whitelist**!");
+    }
+
+    cooldowns.set(userId, Date.now());
+    setTimeout(() => channel.delete().catch(() => {}), 10000);
+
+  } catch (err) {
+    console.error("❌ Error al crear whitelist:", err);
+    await interaction.editReply({
+      content: "⚠️ Ocurrió un error creando tu whitelist. Revisa permisos, categorías o el archivo de preguntas.",
+      flags: MessageFlags.Ephemeral
+    });
+  } finally {
+    processing.delete(userId);
+    console.log(`✅ Whitelist finalizada para ${interaction.user.tag}`);
+  }
+}
 // ------------------- Bienvenidas ------------------- //
 client.on("guildMemberAdd", async (member) => {
   try {
