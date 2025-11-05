@@ -12,10 +12,11 @@ const {
   SlashCommandBuilder,
   REST,
   Routes,
-  MessageFlags
+  ChannelType
 } = require('discord.js');
 const fs = require('fs');
 const express = require('express');
+const path = require('path');
 
 // ------------------- Servidor web ------------------- //
 const app = express();
@@ -24,7 +25,25 @@ app.get("/", (req, res) => res.send("✅ Bot activo y funcionando!"));
 app.listen(PORT, () => console.log(`🌐 Servidor web activo en puerto ${PORT}`));
 
 // ------------------- Config ------------------- //
-const preguntas = JSON.parse(fs.readFileSync("preguntas.json", "utf8"));
+let preguntas;
+try {
+  // intenta cargar preguntas.json en la raíz
+  const preguntasRaw = fs.readFileSync(path.join(__dirname, "preguntas.json"), "utf8");
+  preguntas = JSON.parse(preguntasRaw);
+  if (!Array.isArray(preguntas)) throw new Error("preguntas.json debe ser un array");
+  console.log(`🔎 Cargadas ${preguntas.length} preguntas desde preguntas.json`);
+} catch (err) {
+  // fallback si no existe preguntas.json o está mal formado
+  console.warn("⚠️ No se pudo leer preguntas.json o no existe. Usando preguntas por defecto.", err.message);
+  preguntas = [
+    { pregunta: "¿Qué es el rol?", respuesta: "Interpretar un personaje" },
+    { pregunta: "¿Qué significa NRP?", respuesta: "No Role Play" },
+    { pregunta: "¿Qué es meta gaming?", respuesta: "Usar información OOC en IC" },
+    // Añade/edita las preguntas por defecto aquí si quieres
+  ];
+}
+
+// IDs y constantes (mantuve tus IDs originales)
 const LOG_CHANNEL_ID = "1422893357042110546";
 const LOG_CHANNEL_TRANSCRIPTS_ID = "1294340206337462415";
 const PUBLIC_CHANNEL_ID = "1422893357042110546";
@@ -65,34 +84,75 @@ if (!process.env.TOKEN) {
   console.log("🔑 TOKEN cargado correctamente.");
 }
 
+// ------------------- Helper: hacerPregunta ------------------- //
+// Envía la pregunta al canal y espera la respuesta del usuario (máx 120s).
+// Devuelve el contenido de la respuesta o null si timeout.
+async function hacerPregunta(channel, user, preguntaObj, index, total) {
+  try {
+    const qEmbed = new EmbedBuilder()
+      .setTitle(`Pregunta ${index + 1} / ${total}`)
+      .setDescription(`**${preguntaObj.pregunta || preguntaObj.question || preguntaObj.q}**`)
+      .setColor("Purple")
+      .setFooter({ text: "Responde en este canal para continuar." })
+      .setTimestamp();
+
+    const promptMsg = await channel.send({ content: `<@${user.id}>`, embeds: [qEmbed] });
+
+    const filter = msg => msg.author?.id === user.id;
+    const collected = await channel.awaitMessages({ filter, max: 1, time: 120000, errors: ["time"] }).catch(() => null);
+
+    if (!collected || collected.size === 0) {
+      await channel.send(`<@${user.id}> ⏳ Tiempo de respuesta agotado. Si quieres volver a intentarlo, abre otro ticket o pide a un staff que lo reinicie.`);
+      return null;
+    }
+
+    const response = collected.first();
+    // opcional: borrar la pregunta del bot para mantener limpio el canal (comentado)
+    // await promptMsg.delete().catch(() => {});
+    return response.content?.trim() ?? null;
+  } catch (err) {
+    console.error("❌ Error en hacerPregunta:", err);
+    return null;
+  }
+}
+
 // ------------------- Evento Ready ------------------- //
 client.on("ready", async () => {
   console.log(`✅ Bot iniciado como: ${client.user.tag}`);
-  client.user.setPresence({
-    activities: [{ name: "UNITY CITY 🎮", type: 0 }],
-    status: "online",
-  });
+  try {
+    await client.user.setPresence({
+      activities: [{ name: "UNITY CITY 🎮", type: 0 }],
+      status: "online",
+    });
+  } catch (err) {
+    console.warn("⚠️ No se pudo establecer presencia:", err.message);
+  }
 
-  const commands = [
-    new SlashCommandBuilder().setName("setup-soporte").setDescription("Configura el sistema de soporte."),
-    new SlashCommandBuilder().setName("reset-whitelist").setDescription("Resetea la whitelist de un usuario.")
-      .addUserOption(opt => opt.setName("usuario").setDescription("Usuario a resetear").setRequired(true)),
-    new SlashCommandBuilder().setName("donaciones").setDescription("Muestra información sobre las donaciones."),
-    new SlashCommandBuilder().setName("pilegales").setDescription("Muestra pautas legales."),
-    new SlashCommandBuilder().setName("pnegocios").setDescription("Muestra pautas de negocios."),
-    new SlashCommandBuilder().setName("pstaff").setDescription("Muestra pautas de staff."),
-    new SlashCommandBuilder().setName("pck").setDescription("Muestra pautas de CK."),
-    new SlashCommandBuilder().setName("pstreamer").setDescription("Muestra pautas de streamers."),
-    new SlashCommandBuilder().setName("addwhitelist").setDescription("Añade un usuario a la whitelist.")
-      .addUserOption(opt => opt.setName("usuario").setDescription("Usuario a añadir").setRequired(true)),
-    new SlashCommandBuilder().setName("sancionar").setDescription("Sanciona a un usuario.")
-      .addUserOption(opt => opt.setName("usuario").setDescription("Usuario sancionado").setRequired(true))
-  ].map(cmd => cmd.toJSON());
+  // Registrar comandos de guild (lista que ya tenías)
+  try {
+    const commands = [
+      new SlashCommandBuilder().setName("setup-soporte").setDescription("Configura el sistema de soporte."),
+      new SlashCommandBuilder().setName("reset-whitelist").setDescription("Resetea la whitelist de un usuario.")
+        .addUserOption(opt => opt.setName("usuario").setDescription("Usuario a resetear").setRequired(true)),
+      new SlashCommandBuilder().setName("donaciones").setDescription("Muestra información sobre las donaciones."),
+      new SlashCommandBuilder().setName("pilegales").setDescription("Muestra pautas legales."),
+      new SlashCommandBuilder().setName("pnegocios").setDescription("Muestra pautas de negocios."),
+      new SlashCommandBuilder().setName("pstaff").setDescription("Muestra pautas de staff."),
+      new SlashCommandBuilder().setName("pck").setDescription("Muestra pautas de CK."),
+      new SlashCommandBuilder().setName("pstreamer").setDescription("Muestra pautas de streamers."),
+      new SlashCommandBuilder().setName("addwhitelist").setDescription("Añade un usuario a la whitelist.")
+        .addUserOption(opt => opt.setName("usuario").setDescription("Usuario a añadir").setRequired(true)),
+      new SlashCommandBuilder().setName("sancionar").setDescription("Sanciona a un usuario.")
+        .addUserOption(opt => opt.setName("usuario").setDescription("Usuario sancionado").setRequired(true))
+    ].map(cmd => cmd.toJSON());
 
-  const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
-  const GUILD_ID = "821091789325729803";
-  await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commands });
-  console.log("✅ Comandos registrados correctamente.");
+    const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+    const GUILD_ID = "821091789325729803";
+    await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commands });
+    console.log("✅ Comandos registrados correctamente.");
+  } catch (err) {
+    console.error("❌ Error registrando comandos:", err);
+  }
 });
 
 // ------------------- Interacciones ------------------- //
@@ -103,19 +163,18 @@ client.on("interactionCreate", async (interaction) => {
 
     // ------------------- /sancionar ------------------- //
     if (interaction.isChatInputCommand() && interaction.commandName === "sancionar") {
-      await interaction.deferReply({ ephemeral: true });
-
+      await interaction.deferReply({ ephemeral: true }).catch(() => {});
       const usuario = interaction.options.getUser("usuario");
       const member = await guild.members.fetch(interaction.user.id);
       const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
       if (!allowedRoles.some(role => member.roles.cache.has(role))) {
-        return interaction.editReply({ content: "❌ No tienes permiso para usar este comando." });
+        return interaction.editReply({ content: "❌ No tienes permiso para usar este comando." }).catch(() => {});
       }
 
       const sancionesChannelId = "1435338553088278719";
       const sancionesChannel = guild.channels.cache.get(sancionesChannelId);
       if (!sancionesChannel) {
-        return interaction.editReply({ content: "⚠️ No se encontró el canal de sanciones." });
+        return interaction.editReply({ content: "⚠️ No se encontró el canal de sanciones." }).catch(() => {});
       }
 
       const embed = new EmbedBuilder()
@@ -126,27 +185,27 @@ client.on("interactionCreate", async (interaction) => {
         .setTimestamp()
         .setFooter({ text: "UNITY CITY RP - Sistema de Sanciones" });
 
-      await sancionesChannel.send({ embeds: [embed] });
-      await interaction.editReply({ content: `✅ El usuario ${usuario.tag} ha sido sancionado correctamente.` });
+      await sancionesChannel.send({ embeds: [embed] }).catch(console.error);
+      await interaction.editReply({ content: `✅ El usuario ${usuario.tag} ha sido sancionado correctamente.` }).catch(() => {});
       return;
     }
 
     // ------------------- /reset-whitelist ------------------- //
     if (interaction.isChatInputCommand() && interaction.commandName === "reset-whitelist") {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ ephemeral: true }).catch(() => {});
       const member = await guild.members.fetch(interaction.user.id);
 
       if (!member.roles.cache.has(ROL_ENTREVISTADOR) && !member.roles.cache.has(MOD_ROLES.admin)) {
         return interaction.editReply({
           content: "❌ No tienes permiso para usar este comando. Solo los entrevistadores o administradores pueden hacerlo."
-        });
+        }).catch(() => {});
       }
 
       const usuario = interaction.options.getUser("usuario");
       const miembro = await guild.members.fetch(usuario.id).catch(() => null);
 
       if (!miembro) {
-        return interaction.editReply({ content: "⚠️ No se pudo encontrar al usuario en el servidor." });
+        return interaction.editReply({ content: "⚠️ No se pudo encontrar al usuario en el servidor." }).catch(() => {});
       }
 
       try {
@@ -154,7 +213,7 @@ client.on("interactionCreate", async (interaction) => {
         await miembro.roles.add(ROLES.sinWhitelist).catch(() => {});
       } catch (err) {
         console.error(err);
-        return interaction.editReply({ content: "❌ Error al modificar los roles del usuario." });
+        return interaction.editReply({ content: "❌ Error al modificar los roles del usuario." }).catch(() => {});
       }
 
       const embed = new EmbedBuilder()
@@ -166,7 +225,7 @@ client.on("interactionCreate", async (interaction) => {
       const logChannel = guild.channels.cache.get(RESET_LOG_CHANNEL_ID);
       if (logChannel) logChannel.send({ embeds: [embed] }).catch(() => {});
 
-      await interaction.editReply({ content: "✅ Whitelist reseteada correctamente." });
+      await interaction.editReply({ content: "✅ Whitelist reseteada correctamente." }).catch(() => {});
       return;
     }
 
@@ -185,64 +244,61 @@ client.on("interactionCreate", async (interaction) => {
         .setFooter({ text: "UNITY CITY RP - Donaciones", iconURL: guild.iconURL() })
         .setTimestamp();
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply({ embeds: [embed] }).catch(() => {});
       return;
     }
-// ------------------- Comando /addwhitelist ------------------- //
-if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelist") {
-  const member = await guild.members.fetch(interaction.user.id);
 
-  // ✅ Solo rol Entrevistador puede usarlo
-  if (!member.roles.cache.has(ROL_ENTREVISTADOR)) {
-    return interaction.reply({
-      content: "❌ No tienes permiso para usar este comando. Solo los entrevistadores pueden hacerlo.",
-      flags: MessageFlags.Ephemeral
-    });
-  }
+    // ------------------- Comando /addwhitelist ------------------- //
+    if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelist") {
+      await interaction.deferReply({ ephemeral: true }).catch(() => {});
+      const member = await guild.members.fetch(interaction.user.id);
 
-  const usuario = interaction.options.getUser("usuario");
-  const miembro = await guild.members.fetch(usuario.id).catch(() => null);
+      // ✅ Solo rol Entrevistador puede usarlo
+      if (!member.roles.cache.has(ROL_ENTREVISTADOR)) {
+        return interaction.editReply({
+          content: "❌ No tienes permiso para usar este comando. Solo los entrevistadores pueden hacerlo."
+        }).catch(() => {});
+      }
 
-  if (!miembro) {
-    return interaction.reply({
-      content: "⚠️ No se pudo encontrar al usuario en el servidor.",
-      flags: MessageFlags.Ephemeral
-    });
-  }
+      const usuario = interaction.options.getUser("usuario");
+      const miembro = await guild.members.fetch(usuario.id).catch(() => null);
 
-  await miembro.roles.add(ROLES.whitelist).catch(() => {});
-  await miembro.roles.remove(ROLES.sinWhitelist).catch(() => {});
+      if (!miembro) {
+        return interaction.editReply({
+          content: "⚠️ No se pudo encontrar al usuario en el servidor."
+        }).catch(() => {});
+      }
 
-  // Canal público
-  const publicChannel = guild.channels.cache.get(PUBLIC_CHANNEL_ID);
-  if (publicChannel) {
-    const embed = new EmbedBuilder()
-      .setTitle("✅ Whitelist Añadida")
-      .setDescription(`➡️ El usuario ${usuario} ha sido añadido a la whitelist.`)
-      .setColor("Green")
-      .setTimestamp();
+      await miembro.roles.add(ROLES.whitelist).catch(() => {});
+      await miembro.roles.remove(ROLES.sinWhitelist).catch(() => {});
 
-    publicChannel.send({ embeds: [embed] });
-  }
+      // Canal público
+      const publicChannel = guild.channels.cache.get(PUBLIC_CHANNEL_ID);
+      if (publicChannel) {
+        const embed = new EmbedBuilder()
+          .setTitle("✅ Whitelist Añadida")
+          .setDescription(`➡️ El usuario ${usuario} ha sido añadido a la whitelist.`)
+          .setColor("Green")
+          .setTimestamp();
 
-  await interaction.reply({
-    content: "✅ Usuario añadido a la whitelist correctamente.",
-    flags: MessageFlags.Ephemeral
-  });
+        publicChannel.send({ embeds: [embed] }).catch(() => {});
+      }
 
-  // Log de staff
-  const logChannel = guild.channels.cache.get(LOGS_CHANNEL_ID);
-  if (logChannel) {
-    const logEmbed = new EmbedBuilder()
-      .setTitle("📋 Nuevo añadido a Whitelist")
-      .setDescription(`👤 **Usuario añadido:** ${usuario}\n🧑‍💼 **Añadido por:** ${interaction.user}`)
-      .setColor("Purple")
-      .setTimestamp();
+      // Log de staff
+      const logChannel = guild.channels.cache.get(LOGS_CHANNEL_ID);
+      if (logChannel) {
+        const logEmbed = new EmbedBuilder()
+          .setTitle("📋 Nuevo añadido a Whitelist")
+          .setDescription(`👤 **Usuario añadido:** ${usuario}\n🧑‍💼 **Añadido por:** ${interaction.user}`)
+          .setColor("Purple")
+          .setTimestamp();
 
-    logChannel.send({ embeds: [logEmbed] });
-  }
-  return;
-}
+        logChannel.send({ embeds: [logEmbed] }).catch(() => {});
+      }
+
+      await interaction.editReply({ content: "✅ Usuario añadido a la whitelist correctamente." }).catch(() => {});
+      return;
+    }
 
     // ------------------- Comandos de pautas ------------------- //
     if (interaction.isChatInputCommand() && ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"].includes(interaction.commandName)) {
@@ -255,7 +311,7 @@ if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelis
       if (!allowedRoles.some(role => member.roles.cache.has(role))) {
         return interaction.editReply({
           content: "❌ No tienes permiso para usar este comando. Solo Staff puede usarlo."
-        });
+        }).catch(() => {});
       }
 
       const embed = new EmbedBuilder()
@@ -321,7 +377,7 @@ if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelis
           break;
       }
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({ embeds: [embed] }).catch(() => {});
       return;
     }
 
@@ -346,346 +402,357 @@ if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelis
           ])
       );
 
-      await interaction.reply({ embeds: [embed], components: [row] });
+      await interaction.reply({ embeds: [embed], components: [row] }).catch(() => {});
       return;
     }
 
+    // ------------------- Ticket Select ------------------- //
+    if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
+      // Prevenir doble ejecución
+      if (interaction.ticketProcessing) return;
+      interaction.ticketProcessing = true;
 
-// ------------------- Ticket Select ------------------- //
-if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
-  // Prevenir doble ejecución
-  if (interaction.ticketProcessing) return;
-  interaction.ticketProcessing = true;
+      const ticketMap = {
+        soporte_general: { cat: SOPORTE_CATEGORY_ID, label: "🟢 Ticket de Soporte General" },
+        reportes: { cat: "1423746566610620568", label: "🐞 Ticket de Reportes" },
+        ck: { cat: "1423746747741765632", label: "💀 Ticket de CK" },
+        donaciones: { cat: "1423747380637073489", label: "💸 Ticket de Donaciones" },
+        facciones: { cat: "1423747506382311485", label: "🏢 Ticket de Facciones" },
+        postulacion: { cat: "1423747604495466536", label: "📋 Ticket de Postulación" }
+      };
 
-  const ticketMap = {
-    soporte_general: { cat: SOPORTE_CATEGORY_ID, label: "🟢 Ticket de Soporte General" },
-    reportes: { cat: "1423746566610620568", label: "🐞 Ticket de Reportes" },
-    ck: { cat: "1423746747741765632", label: "💀 Ticket de CK" },
-    donaciones: { cat: "1423747380637073489", label: "💸 Ticket de Donaciones" },
-    facciones: { cat: "1423747506382311485", label: "🏢 Ticket de Facciones" },
-    postulacion: { cat: "1423747604495466536", label: "📋 Ticket de Postulación" }
-  };
-
-  const tipo = interaction.values[0];
-  const { cat, label } = ticketMap[tipo];
-  const encargadoDonaciones = "1281934868410007653"; 
-
-  // ✅ Prevenir tickets duplicados
-  const existingTicket = guild.channels.cache.find(
-    c => c.name.startsWith(`${tipo}-${interaction.user.username}`)
-  );
-
-  if (existingTicket) {
-    interaction.ticketProcessing = false;
-    return interaction.reply({
-      content: `⚠️ Ya tienes un ticket abierto: ${existingTicket}`,
-      flags: MessageFlags.Ephemeral
-    });
-  }
-
-  // ✅ Nombre único del canal
-  let channelName = `${tipo}-${interaction.user.username}`;
-  let counter = 1;
-  while (guild.channels.cache.some(c => c.name === channelName)) {
-    channelName = `${tipo}-${interaction.user.username}-${counter++}`;
-  }
-
-  try {
-    // ⚙️ Permisos base
-    const perms = [
-      { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-      {
-        id: interaction.user.id,
-        allow: [
-          PermissionsBitField.Flags.ViewChannel,
-          PermissionsBitField.Flags.SendMessages,
-          PermissionsBitField.Flags.AttachFiles,
-          PermissionsBitField.Flags.EmbedLinks
-        ]
-      },
-      {
-        id: client.user.id,
-        allow: [
-          PermissionsBitField.Flags.ViewChannel,
-          PermissionsBitField.Flags.SendMessages,
-          PermissionsBitField.Flags.AttachFiles,
-          PermissionsBitField.Flags.EmbedLinks,
-          PermissionsBitField.Flags.ManageChannels
-        ]
+      const tipo = interaction.values[0];
+      const mapEntry = ticketMap[tipo];
+      if (!mapEntry) {
+        interaction.ticketProcessing = false;
+        return interaction.reply({ content: "⚠️ Tipo de ticket inválido.", ephemeral: true }).catch(() => {});
       }
-    ];
+      const { cat, label } = mapEntry;
+      const encargadoDonaciones = "1281934868410007653";
 
-    // 👑 Roles según el tipo de ticket
-    if (tipo === "donaciones") {
-      perms.push({
-        id: encargadoDonaciones,
-        allow: [
-          PermissionsBitField.Flags.ViewChannel,
-          PermissionsBitField.Flags.SendMessages,
-          PermissionsBitField.Flags.AttachFiles,
-          PermissionsBitField.Flags.EmbedLinks
-        ]
-      });
-    } else {
-      perms.push(
-        {
-          id: MOD_ROLES.moderador,
-          allow: [
-            PermissionsBitField.Flags.ViewChannel,
-            PermissionsBitField.Flags.SendMessages,
-            PermissionsBitField.Flags.AttachFiles,
-            PermissionsBitField.Flags.EmbedLinks
-          ]
-        },
-        {
-          id: MOD_ROLES.soporte,
-          allow: [
-            PermissionsBitField.Flags.ViewChannel,
-            PermissionsBitField.Flags.SendMessages,
-            PermissionsBitField.Flags.AttachFiles,
-            PermissionsBitField.Flags.EmbedLinks
-          ]
-        },
-        {
-          id: MOD_ROLES.admin,
-          allow: [
-            PermissionsBitField.Flags.ViewChannel,
-            PermissionsBitField.Flags.SendMessages,
-            PermissionsBitField.Flags.AttachFiles,
-            PermissionsBitField.Flags.EmbedLinks
-          ]
-        }
+      // ✅ Prevenir tickets duplicados
+      const existingTicket = guild.channels.cache.find(
+        c => c.name.startsWith(`${tipo}-${interaction.user.username}`)
       );
-    }
 
-    // 🆕 Crear el canal del ticket
-    const channel = await guild.channels.create({
-      name: channelName,
-      type: 0,
-      parent: cat,
-      permissionOverwrites: perms
-    });
-
-    const embedTicket = new EmbedBuilder()
-      .setTitle(label)
-      .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**.\nUn miembro del staff te atenderá pronto.`)
-      .setColor("Purple")
-      .setTimestamp();
-
-    const rowCerrar = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId("cerrar_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger)
-    );
-
-    const mention =
-      tipo === "donaciones"
-        ? `<@&${encargadoDonaciones}>`
-        : `<@&${MOD_ROLES.moderador}> <@&${MOD_ROLES.soporte}> <@&${MOD_ROLES.admin}>`;
-
-    await channel.send({
-      content: mention,
-      embeds: [embedTicket],
-      components: [rowCerrar],
-      allowedMentions: {
-        roles:
-          tipo === "donaciones"
-            ? [encargadoDonaciones]
-            : [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin]
+      if (existingTicket) {
+        interaction.ticketProcessing = false;
+        return interaction.reply({
+          content: `⚠️ Ya tienes un ticket abierto: ${existingTicket}`,
+          ephemeral: true
+        }).catch(() => {});
       }
-    });
 
-    await interaction.reply({
-      content: `✅ Ticket creado correctamente: ${channel}`,
-      flags: MessageFlags.Ephemeral
-    });
-  } catch (err) {
-    console.error("❌ Error al crear ticket:", err);
-    if (!interaction.replied) {
-      await interaction.reply({
-        content: "⚠️ Hubo un error al crear el ticket.",
-        flags: MessageFlags.Ephemeral
-      }).catch(() => {});
+      // ✅ Nombre único del canal
+      let channelName = `${tipo}-${interaction.user.username}`;
+      let counter = 1;
+      while (guild.channels.cache.some(c => c.name === channelName)) {
+        channelName = `${tipo}-${interaction.user.username}-${counter++}`;
+      }
+
+      try {
+        // ⚙️ Permisos base
+        const perms = [
+          { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+          {
+            id: interaction.user.id,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages,
+              PermissionsBitField.Flags.AttachFiles,
+              PermissionsBitField.Flags.EmbedLinks
+            ]
+          },
+          {
+            id: client.user.id,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages,
+              PermissionsBitField.Flags.AttachFiles,
+              PermissionsBitField.Flags.EmbedLinks,
+              PermissionsBitField.Flags.ManageChannels
+            ]
+          }
+        ];
+
+        // 👑 Roles según el tipo de ticket
+        if (tipo === "donaciones") {
+          perms.push({
+            id: encargadoDonaciones,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages,
+              PermissionsBitField.Flags.AttachFiles,
+              PermissionsBitField.Flags.EmbedLinks
+            ]
+          });
+        } else {
+          perms.push(
+            {
+              id: MOD_ROLES.moderador,
+              allow: [
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages,
+                PermissionsBitField.Flags.AttachFiles,
+                PermissionsBitField.Flags.EmbedLinks
+              ]
+            },
+            {
+              id: MOD_ROLES.soporte,
+              allow: [
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages,
+                PermissionsBitField.Flags.AttachFiles,
+                PermissionsBitField.Flags.EmbedLinks
+              ]
+            },
+            {
+              id: MOD_ROLES.admin,
+              allow: [
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages,
+                PermissionsBitField.Flags.AttachFiles,
+                PermissionsBitField.Flags.EmbedLinks
+              ]
+            }
+          );
+        }
+
+        // 🆕 Crear el canal del ticket (texto)
+        const channel = await guild.channels.create({
+          name: channelName,
+          type: ChannelType.GuildText,
+          parent: cat,
+          permissionOverwrites: perms
+        });
+
+        const embedTicket = new EmbedBuilder()
+          .setTitle(label)
+          .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**.\nUn miembro del staff te atenderá pronto.`)
+          .setColor("Purple")
+          .setTimestamp();
+
+        const rowCerrar = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId("cerrar_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger)
+        );
+
+        const mention =
+          tipo === "donaciones"
+            ? `<@&${encargadoDonaciones}>`
+            : `<@&${MOD_ROLES.moderador}> <@&${MOD_ROLES.soporte}> <@&${MOD_ROLES.admin}>`;
+
+        await channel.send({
+          content: mention,
+          embeds: [embedTicket],
+          components: [rowCerrar],
+          allowedMentions: {
+            roles:
+              tipo === "donaciones"
+                ? [encargadoDonaciones]
+                : [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin]
+          }
+        }).catch(console.error);
+
+        await interaction.reply({
+          content: `✅ Ticket creado correctamente: ${channel}`,
+          ephemeral: true
+        }).catch(() => {});
+      } catch (err) {
+        console.error("❌ Error al crear ticket:", err);
+        if (!interaction.replied) {
+          await interaction.reply({
+            content: "⚠️ Hubo un error al crear el ticket.",
+            ephemeral: true
+          }).catch(() => {});
+        }
+      } finally {
+        interaction.ticketProcessing = false;
+      }
+
+      return;
     }
-  } finally {
-    interaction.ticketProcessing = false;
-  }
 
-  return;
-}
- 
     // ------------------- Botones ------------------- //
     if (interaction.isButton()) {
       const customId = interaction.customId;
 
-  // 🔒 Cerrar ticket con transcript
-if (customId === "cerrar_ticket") {
-  await interaction.reply({
-    content: "⏳ Cerrando ticket en 5 segundos...",
-    flags: MessageFlags.Ephemeral
-  });
+      // 🔒 Cerrar ticket con transcript
+      if (customId === "cerrar_ticket") {
+        await interaction.reply({ content: "⏳ Cerrando ticket en 5 segundos...", ephemeral: true }).catch(() => {});
 
-  setTimeout(async () => {
-    const channel = interaction.channel;
-    if (!channel) return;
+        setTimeout(async () => {
+          const channel = interaction.channel;
+          if (!channel) return;
 
-    try {
-      // Obtener mensajes (máx 100)
-      const messages = await channel.messages.fetch({ limit: 100 });
-      const sorted = Array.from(messages.values()).sort(
-        (a, b) => a.createdTimestamp - b.createdTimestamp
-      );
+          try {
+            // Obtener mensajes (máx 100)
+            const messages = await channel.messages.fetch({ limit: 100 });
+            const sorted = Array.from(messages.values()).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
 
-      // Crear el contenido del transcript
-      let transcriptContent = `Transcript del canal: #${channel.name}\nFecha de cierre: ${new Date().toLocaleString()}\n\n`;
-      for (const msg of sorted) {
-        const time = new Date(msg.createdTimestamp).toLocaleTimeString();
-        transcriptContent += `[${time}] ${msg.author?.tag || "Sistema"}: ${msg.content || "(embed/archivo)"}\n`;
+            // Crear el contenido del transcript
+            let transcriptContent = `Transcript del canal: #${channel.name}\nFecha de cierre: ${new Date().toLocaleString()}\n\n`;
+            for (const msg of sorted) {
+              const time = new Date(msg.createdTimestamp).toLocaleTimeString();
+              const author = msg.author?.tag || "Sistema";
+              const content = msg.content || (msg.embeds && msg.embeds.length ? "[embed]" : "[archivo/adjunto]");
+              transcriptContent += `[${time}] ${author}: ${content}\n`;
+            }
+
+            // Sanitizar nombre archivo
+            const safeName = channel.name.replace(/[^a-z0-9_\-]/gi, '_').toLowerCase();
+            const safePath = path.join(__dirname, `${safeName}_transcript.txt`);
+            fs.writeFileSync(safePath, transcriptContent, "utf8");
+
+            // Enviar el transcript al canal de logs
+            const logChannel = channel.guild.channels.cache.get(LOG_CHANNEL_TRANSCRIPTS_ID);
+            if (logChannel) {
+              const embed = new EmbedBuilder()
+                .setTitle("🗒️ Transcript de Ticket Cerrado")
+                .setDescription(`📁 Ticket cerrado: **#${channel.name}**\n👤 Cerrado por: ${interaction.user}`)
+                .setColor("Purple")
+                .setTimestamp();
+
+              await logChannel.send({ embeds: [embed], files: [safePath] }).catch(console.error);
+            }
+
+            // Borrar el archivo local
+            fs.unlinkSync(safePath);
+
+            // Intentar borrar el canal
+            await channel.delete().catch(err => {
+              console.error("❌ Error eliminando canal:", err);
+            });
+          } catch (err) {
+            console.error("❌ Error al cerrar ticket:", err);
+            await interaction.followUp({
+              content: "⚠️ Hubo un error al generar el transcript o cerrar el canal.",
+              ephemeral: true
+            }).catch(() => {});
+          }
+        }, 5000);
+
+        return;
       }
 
-      // Guardar el archivo en una ruta segura local
-      const safePath = `./${channel.name}_transcript.txt`;
-      fs.writeFileSync(safePath, transcriptContent, "utf8");
+      // ------------------- WHITELIST ------------------- //
+      if (customId === "whitelist") {
+        const userId = interaction.user.id;
+        const now = Date.now();
 
-      // Enviar el transcript al canal de logs
-      const logChannel = channel.guild.channels.cache.get(LOG_CHANNEL_TRANSCRIPTS_ID);
-      if (logChannel) {
-        const embed = new EmbedBuilder()
-          .setTitle("🗒️ Transcript de Ticket Cerrado")
-          .setDescription(`📁 Ticket cerrado: **#${channel.name}**\n👤 Cerrado por: ${interaction.user}`)
-          .setColor("Purple")
-          .setTimestamp();
+        // Evitar doble click simultáneo
+        if (processing.has(userId)) {
+          return interaction.reply({
+            content: "⚠️ Ya se está creando tu whitelist, espera un momento...",
+            ephemeral: true
+          }).catch(() => {});
+        }
 
-        await logChannel.send({ embeds: [embed], files: [safePath] });
+        // Cooldown 6h
+        if (cooldowns.has(userId) && now - cooldowns.get(userId) < COOLDOWN_HORAS * 60 * 60 * 1000) {
+          const remaining = Math.ceil((COOLDOWN_HORAS * 60 * 60 * 1000 - (now - cooldowns.get(userId))) / 60000);
+          return interaction.reply({
+            content: `⚠️ Ya hiciste un intento de whitelist. Espera ${remaining} minuto(s).`,
+            ephemeral: true
+          }).catch(() => {});
+        }
+
+        processing.add(userId);
+        await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
+        // 🧹 Limpieza automática a los 2 minutos (por seguridad)
+        setTimeout(() => {
+          if (processing.has(userId)) {
+            console.log(`🧽 Liberando usuario atascado en whitelist: ${userId}`);
+            processing.delete(userId);
+          }
+        }, 120000);
+
+        try {
+          console.log(`🎬 Iniciando whitelist para ${interaction.user.tag} (${userId})`);
+
+          // Evitar tickets duplicados
+          const userTickets = guild.channels.cache.filter(c => c.name && c.name.startsWith(`whitelist-${interaction.user.username}`));
+          if (userTickets.size > 0) {
+            processing.delete(userId);
+            return interaction.editReply({
+              content: `⚠️ Ya tienes un ticket de whitelist abierto: ${userTickets.first()}`
+            }).catch(() => {});
+          }
+
+          // Crear canal
+          const perms = [
+            { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+            { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+            { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+            { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+            { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+          ];
+
+          const channel = await guild.channels.create({
+            name: `whitelist-${interaction.user.username}`,
+            type: ChannelType.GuildText,
+            parent: WHITELIST_CATEGORY_ID,
+            permissionOverwrites: perms
+          });
+
+          await interaction.editReply({ content: `✅ Ticket de whitelist creado: ${channel}` }).catch(() => {});
+
+          // --- Preguntas ---
+          let puntaje = 0;
+          for (let i = 0; i < preguntas.length; i++) {
+            const respuesta = await hacerPregunta(channel, interaction.user, preguntas[i], i, preguntas.length);
+            // comparar insensible a mayusculas y espacios
+            if (respuesta && preguntas[i].respuesta) {
+              const a = respuesta.trim().toLowerCase();
+              const b = String(preguntas[i].respuesta).trim().toLowerCase();
+              if (a === b) puntaje++;
+            }
+          }
+
+          const aprobado = puntaje >= 12;
+          const resultadoEmbed = new EmbedBuilder()
+            .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
+            .setDescription(aprobado
+              ? `🎉 ¡Felicidades ${interaction.user}, tu examen ha sido aprobado!\n**Puntaje:** ${puntaje}/${preguntas.length}`
+              : `😢 Lo sentimos ${interaction.user}, no has aprobado. Podrás intentarlo de nuevo en 6h.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
+            .setColor(aprobado ? "Green" : "Red");
+
+          const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+          if (logChannel) logChannel.send({ embeds: [resultadoEmbed] }).catch(() => {});
+          await channel.send({ embeds: [resultadoEmbed] }).catch(() => {});
+
+          if (aprobado) {
+            const member = await guild.members.fetch(userId);
+            await member.roles.add(ROLES.whitelist).catch(() => {});
+            await member.roles.remove(ROLES.sinWhitelist).catch(() => {});
+            await channel.send("🎉 ¡Has recibido el rol de **Whitelist**!").catch(() => {});
+          }
+
+          cooldowns.set(userId, Date.now());
+          setTimeout(() => channel.delete().catch(() => {}), 10000);
+
+        } catch (err) {
+          console.error("❌ Error al crear whitelist:", err);
+          await interaction.editReply({
+            content: "⚠️ Ocurrió un error creando tu whitelist. Revisa permisos, categorías o el archivo de preguntas.",
+            ephemeral: true
+          }).catch(() => {});
+        } finally {
+          processing.delete(userId);
+          console.log(`✅ Whitelist finalizada para ${interaction.user.tag}`);
+        }
       }
-
-      // Borrar el archivo local
-      fs.unlinkSync(safePath);
-
-      // Intentar borrar el canal
-      await channel.delete().catch(err => {
-        console.error("❌ Error eliminando canal:", err);
-      });
-
-    } catch (err) {
-      console.error("❌ Error al cerrar ticket:", err);
-      await interaction.followUp({
-        content: "⚠️ Hubo un error al generar el transcript o cerrar el canal.",
-        flags: MessageFlags.Ephemeral
-      }).catch(() => {});
     }
-  }, 5000);
-
-  return;
-}
-// ------------------- WHITELIST ------------------- //
-if (customId === "whitelist") {
-  const userId = interaction.user.id;
-  const now = Date.now();
-
-  // Evitar doble click simultáneo
-  if (processing.has(userId)) {
-    return interaction.reply({
-      content: "⚠️ Ya se está creando tu whitelist, espera un momento...",
-      flags: MessageFlags.Ephemeral
-    });
-  }
-
-  // Cooldown 6h
-  if (
-    cooldowns.has(userId) &&
-    now - cooldowns.get(userId) < COOLDOWN_HORAS * 60 * 60 * 1000
-  ) {
-    const remaining = Math.ceil(
-      (COOLDOWN_HORAS * 60 * 60 * 1000 -
-        (now - cooldowns.get(userId))) / 60000
-    );
-    return interaction.reply({
-      content: `⚠️ Ya hiciste un intento de whitelist. Espera ${remaining} minuto(s).`,
-      flags: MessageFlags.Ephemeral
-    });
-  }
-
-  processing.add(userId);
-  await interaction.deferReply({ ephemeral: true });
-
-  // 🧹 Limpieza automática a los 2 minutos (por seguridad)
-  setTimeout(() => {
-    if (processing.has(userId)) {
-      console.log(`🧽 Liberando usuario atascado en whitelist: ${userId}`);
-      processing.delete(userId);
-    }
-  }, 120000);
-
-  try {
-    console.log(`🎬 Iniciando whitelist para ${interaction.user.tag} (${userId})`);
-
-    // Evitar tickets duplicados
-    const userTickets = guild.channels.cache.filter(c =>
-      c.name.startsWith(`whitelist-${interaction.user.username}`)
-    );
-    if (userTickets.size > 0) {
-      processing.delete(userId);
-      return interaction.editReply({
-        content: `⚠️ Ya tienes un ticket de whitelist abierto: ${userTickets.first()}`
-      });
-    }
-
-    // Crear canal
-    const channel = await guild.channels.create({
-      name: `whitelist-${interaction.user.username}`,
-      type: 0,
-      parent: WHITELIST_CATEGORY_ID,
-      permissionOverwrites: [
-        { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-        { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-        { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-        { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-      ],
-    });
-
-    await interaction.editReply({ content: `✅ Ticket de whitelist creado: ${channel}` });
-
-    // --- Preguntas ---
-    let puntaje = 0;
-    for (let i = 0; i < preguntas.length; i++) {
-      const respuesta = await hacerPregunta(channel, interaction.user, preguntas[i], i, preguntas.length);
-      if (respuesta && respuesta === preguntas[i].respuesta) puntaje++;
-    }
-
-    const aprobado = puntaje >= 12;
-    const resultadoEmbed = new EmbedBuilder()
-      .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
-      .setDescription(aprobado
-        ? `🎉 ¡Felicidades ${interaction.user}, tu examen ha sido aprobado!\n**Puntaje:** ${puntaje}/${preguntas.length}`
-        : `😢 Lo sentimos ${interaction.user}, no has aprobado. Podrás intentarlo de nuevo en 6h.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
-      .setColor(aprobado ? "Green" : "Red");
-
-    const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
-    if (logChannel) logChannel.send({ embeds: [resultadoEmbed] });
-    await channel.send({ embeds: [resultadoEmbed] });
-
-    if (aprobado) {
-      const member = await guild.members.fetch(userId);
-      await member.roles.add(ROLES.whitelist);
-      await member.roles.remove(ROLES.sinWhitelist);
-      await channel.send("🎉 ¡Has recibido el rol de **Whitelist**!");
-    }
-
-    cooldowns.set(userId, Date.now());
-    setTimeout(() => channel.delete().catch(() => {}), 10000);
-
   } catch (err) {
-    console.error("❌ Error al crear whitelist:", err);
-    await interaction.editReply({
-      content: "⚠️ Ocurrió un error creando tu whitelist. Revisa permisos, categorías o el archivo de preguntas.",
-      flags: MessageFlags.Ephemeral
-    });
-  } finally {
-    processing.delete(userId);
-    console.log(`✅ Whitelist finalizada para ${interaction.user.tag}`);
+    console.error("❌ Error en interactionCreate:", err);
+    // intenta notificar al usuario si posible
+    try {
+      if (interaction && !interaction.replied) {
+        await interaction.reply({ content: "⚠️ Ocurrió un error interno.", ephemeral: true }).catch(() => {});
+      }
+    } catch {}
   }
- }
-}); // 🔥 cierre de client.on("interactionCreate")
+}); 
 
 // ------------------- Manejo global de errores ------------------- //
 process.on('exit', (code) => console.log(`⚠️ Proceso finalizado con código ${code}`));
@@ -712,7 +779,7 @@ client.on("guildMemberAdd", async (member) => {
       .setFooter({ text: "UNITY CITY RP", iconURL: member.guild.iconURL() })
       .setTimestamp();
 
-    await channel.send({ embeds: [embed] });
+    await channel.send({ embeds: [embed] }).catch(() => {});
   } catch (err) {
     console.error("❌ Error en guildMemberAdd:", err);
   }
