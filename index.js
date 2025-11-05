@@ -65,42 +65,6 @@ if (!process.env.TOKEN) {
   console.log("🔑 TOKEN cargado correctamente.");
 }
 
-// ------------------- Función hacer pregunta ------------------- //
-async function hacerPregunta(channel, usuario, pregunta, index, total) {
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("a").setLabel("A").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("b").setLabel("B").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("c").setLabel("C").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("d").setLabel("D").setStyle(ButtonStyle.Secondary)
-  );
-
-  const opciones = pregunta.opciones
-    .map((texto, i) => `${String.fromCharCode(65 + i)}) ${texto}`)
-    .join("\n");
-
-  const embed = new EmbedBuilder()
-    .setTitle(`❓ Pregunta ${index + 1} de ${total}`)
-    .setDescription(`**${pregunta.pregunta}**\n\n${opciones}`)
-    .setColor("Purple");
-
-  const msg = await channel.send({ embeds: [embed], components: [row] });
-
-  return new Promise((resolve) => {
-    const filter = (i) => i.user.id === usuario.id;
-    msg.awaitMessageComponent({ filter, time: 60000 })
-      .then(async (interaction) => {
-        await interaction.deferUpdate().catch(() => {});
-        await msg.delete().catch(() => {});
-        resolve(interaction.customId);
-      })
-      .catch(() => {
-        msg.delete().catch(() => {});
-        channel.send("⏰ Tiempo agotado, pasamos a la siguiente.").catch(() => {});
-        resolve(null);
-      });
-  });
-}
-
 // ------------------- Evento Ready ------------------- //
 client.on("ready", async () => {
   console.log(`✅ Bot iniciado como: ${client.user.tag}`);
@@ -109,68 +73,56 @@ client.on("ready", async () => {
     status: "online",
   });
 
-// Registrar comandos
-const commands = [
-  new SlashCommandBuilder()
-    .setName("setup-soporte")
-    .setDescription("Configura el sistema de soporte."),
+  // Registrar comandos
+  const commands = [
+    new SlashCommandBuilder()
+      .setName("setup-soporte")
+      .setDescription("Configura el sistema de soporte."),
+    new SlashCommandBuilder()
+      .setName("reset-whitelist")
+      .setDescription("Resetea la whitelist de un usuario.")
+      .addUserOption(opt => opt.setName("usuario").setDescription("Usuario a resetear").setRequired(true)),
+    new SlashCommandBuilder()
+      .setName("donaciones")
+      .setDescription("Muestra información sobre las donaciones."),
+    new SlashCommandBuilder()
+      .setName("pilegales")
+      .setDescription("Muestra pautas legales."),
+    new SlashCommandBuilder()
+      .setName("pnegocios")
+      .setDescription("Muestra pautas de negocios."),
+    new SlashCommandBuilder()
+      .setName("pstaff")
+      .setDescription("Muestra pautas de staff."),
+    new SlashCommandBuilder()
+      .setName("sancionar")
+      .setDescription("Sanciona a un usuario y publica el aviso en el canal de sanciones.")
+      .addUserOption(opt =>
+        opt.setName("usuario")
+          .setDescription("Usuario sancionado")
+          .setRequired(true)
+      ),
+    new SlashCommandBuilder()
+      .setName("pck")
+      .setDescription("Muestra pautas de CK."),
+    new SlashCommandBuilder()
+      .setName("pstreamer")
+      .setDescription("Muestra pautas de streamers."),
+    new SlashCommandBuilder()
+      .setName("addwhitelist")
+      .setDescription("Añade un usuario a la whitelist.")
+      .addUserOption(opt =>
+        opt.setName("usuario")
+          .setDescription("Usuario a añadir")
+          .setRequired(true)
+      )
+  ].map(cmd => cmd.toJSON());
 
-  new SlashCommandBuilder()
-    .setName("reset-whitelist")
-    .setDescription("Resetea la whitelist de un usuario.")
-    .addUserOption(opt =>
-      opt.setName("usuario")
-        .setDescription("Usuario a resetear")
-        .setRequired(true)
-    ),
-
-  new SlashCommandBuilder()
-    .setName("donaciones")
-    .setDescription("Muestra información sobre las donaciones."),
-
-  new SlashCommandBuilder()
-    .setName("pilegales")
-    .setDescription("Muestra pautas legales."),
-
-  new SlashCommandBuilder()
-    .setName("pnegocios")
-    .setDescription("Muestra pautas de negocios."),
-
-  new SlashCommandBuilder()
-    .setName("pstaff")
-    .setDescription("Muestra pautas de staff."),
-
-  new SlashCommandBuilder()
-    .setName("sancionar")
-    .setDescription("Sanciona a un usuario y publica el aviso en el canal de sanciones.")
-    .addUserOption(opt =>
-      opt.setName("usuario")
-        .setDescription("Usuario sancionado")
-        .setRequired(true)
-    ),
-
-  new SlashCommandBuilder()
-    .setName("pck")
-    .setDescription("Muestra pautas de CK."),
-
-  new SlashCommandBuilder()
-    .setName("pstreamer")
-    .setDescription("Muestra pautas de streamers."),
-
-  new SlashCommandBuilder()
-    .setName("addwhitelist")
-    .setDescription("Añade un usuario a la whitelist.")
-    .addUserOption(opt =>
-      opt.setName("usuario")
-        .setDescription("Usuario a añadir")
-        .setRequired(true)
-    )
-].map(cmd => cmd.toJSON());
-
-const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
-const GUILD_ID = "821091789325729803";
-await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commands });
-console.log("✅ Comandos registrados correctamente.");
+  const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+  const GUILD_ID = "821091789325729803";
+  await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commands });
+  console.log("✅ Comandos registrados correctamente.");
+});
 
 // ------------------- Interacciones ------------------- //
 client.on("interactionCreate", async (interaction) => {
@@ -178,6 +130,47 @@ client.on("interactionCreate", async (interaction) => {
     const guild = interaction.guild;
     if (!guild) return;
 
+    // ------------------- /sancionar ------------------- //
+    if (interaction.isChatInputCommand() && interaction.commandName === "sancionar") {
+      await interaction.deferReply({ ephemeral: true });
+
+      const usuario = interaction.options.getUser("usuario");
+      const member = await guild.members.fetch(interaction.user.id);
+      const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
+      if (!allowedRoles.some((role) => member.roles.cache.has(role))) {
+        return interaction.editReply({
+          content: "❌ No tienes permiso para usar este comando. Solo el Staff puede sancionar.",
+        });
+      }
+
+      const sancionesChannelId = "1435338553088278719";
+      const sancionesChannel = guild.channels.cache.get(sancionesChannelId);
+      if (!sancionesChannel) {
+        return interaction.editReply({
+          content: "⚠️ No se encontró el canal de sanciones. Verifica el ID configurado.",
+        });
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle("🚨 Usuario Sancionado")
+        .setDescription(`El usuario <@${usuario.id}> ha sido sancionado.`)
+        .setColor("Red")
+        .setThumbnail(usuario.displayAvatarURL({ dynamic: true }))
+        .setTimestamp()
+        .setFooter({ text: "UNITY CITY RP - Sistema de Sanciones" });
+
+      await sancionesChannel.send({ embeds: [embed] });
+
+      await interaction.editReply({
+        content: `✅ El usuario ${usuario.tag} ha sido sancionado correctamente.`,
+      });
+      return;
+    }
+
+  } catch (err) {
+    console.error("❌ Error en interacción:", err);
+  }
+});
 // ------------------- /reset-whitelist ------------------- //
 if (interaction.isChatInputCommand() && interaction.commandName === "reset-whitelist") {
   await interaction.deferReply({ ephemeral: true });
@@ -560,44 +553,7 @@ if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select"
 
   return;
 }
-
- // ------------------- /sancionar ------------------- //
-    if (interaction.isChatInputCommand() && interaction.commandName === "sancionar") {
-      await interaction.deferReply({ ephemeral: true });
-
-      const usuario = interaction.options.getUser("usuario");
-      const member = await guild.members.fetch(interaction.user.id);
-      const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
-      if (!allowedRoles.some((role) => member.roles.cache.has(role))) {
-        return interaction.editReply({
-          content: "❌ No tienes permiso para usar este comando. Solo el Staff puede sancionar.",
-        });
-      }
-
-      const sancionesChannelId = "1435338553088278719";
-      const sancionesChannel = guild.channels.cache.get(sancionesChannelId);
-      if (!sancionesChannel) {
-        return interaction.editReply({
-          content: "⚠️ No se encontró el canal de sanciones. Verifica el ID configurado.",
-        });
-      }
-
-      const embed = new EmbedBuilder()
-        .setTitle("🚨 Usuario Sancionado")
-        .setDescription(`El usuario <@${usuario.id}> ha sido sancionado.`)
-        .setColor("Red")
-        .setThumbnail(usuario.displayAvatarURL({ dynamic: true }))
-        .setTimestamp()
-        .setFooter({ text: "UNITY CITY RP - Sistema de Sanciones" });
-
-      await sancionesChannel.send({ embeds: [embed] });
-
-      await interaction.editReply({
-        content: `✅ El usuario ${usuario.tag} ha sido sancionado correctamente.`,
-      });
-      return;
-    }
-    
+ 
     // ------------------- Botones ------------------- //
     if (interaction.isButton()) {
       const customId = interaction.customId;
@@ -771,6 +727,7 @@ if (customId === "whitelist") {
     console.log(`✅ Whitelist finalizada para ${interaction.user.tag}`);
   }
 }
+      
 // ------------------- Bienvenidas ------------------- //
 client.on("guildMemberAdd", async (member) => {
   try {
@@ -792,12 +749,62 @@ client.on("guildMemberAdd", async (member) => {
   }
 });
 
+// ------------------- /sancionar ------------------- //
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+
+  if (interaction.commandName === "sancionar") {
+    await interaction.deferReply({ ephemeral: true });
+
+    const { guild } = interaction;
+    const usuario = interaction.options.getUser("usuario");
+    const member = await guild.members.fetch(interaction.user.id);
+    const MOD_ROLES = {
+      admin: "ID_DEL_ROL_ADMIN",
+      moderador: "ID_DEL_ROL_MODERADOR",
+      soporte: "ID_DEL_ROL_SOPORTE",
+    };
+
+    const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
+    if (!allowedRoles.some(role => member.roles.cache.has(role))) {
+      return interaction.editReply({
+        content: "❌ No tienes permiso para usar este comando. Solo el Staff puede sancionar."
+      });
+    }
+
+    // 📢 Canal de sanciones
+    const sancionesChannelId = "1435338553088278719"; 
+    const sancionesChannel = guild.channels.cache.get(sancionesChannelId);
+
+    if (!sancionesChannel) {
+      return interaction.editReply({
+        content: "⚠️ No se encontró el canal de sanciones. Verifica el ID configurado."
+      });
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("🚨 Usuario Sancionado")
+      .setDescription(`El usuario ${usuario} ha sido sancionado.`)
+      .setColor("Red")
+      .setThumbnail(usuario.displayAvatarURL({ dynamic: true }))
+      .setTimestamp()
+      .setFooter({ text: "UNITY CITY RP - Sistema de Sanciones" });
+
+
+    await sancionesChannel.send({ embeds: [embed] });
+
+    await interaction.editReply({
+      content: `✅ El usuario ${usuario.tag} ha sido sancionado correctamente.`,
+    });
+  }
+});
+
 // ------------------- Manejo global de errores ------------------- //
 process.on('exit', (code) => console.log(`⚠️ Proceso finalizado con código ${code}`));
 process.on('uncaughtException', (err) => console.error('❌ Excepción no capturada:', err));
 process.on('unhandledRejection', (reason) => console.error('❌ Promesa no manejada:', reason));
 
 // ------------------- Login ------------------- //
-client.login(process.env.TOKEN)
-  .then(() => console.log("🔓 Login exitoso. Bot conectado a Discord."))
+ client.login(process.env.TOKEN);
+ .then(() => console.log("🔓 Login exitoso. Bot conectado a Discord."))
   .catch(err => console.error("❌ Error al iniciar sesión:", err));
