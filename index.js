@@ -84,36 +84,40 @@ if (!process.env.TOKEN) {
   console.log("🔑 TOKEN cargado correctamente.");
 }
 
-// ------------------- Helper: hacerPregunta ------------------- //
-// Envía la pregunta al canal y espera la respuesta del usuario (máx 120s).
-// Devuelve el contenido de la respuesta o null si timeout.
-async function hacerPregunta(channel, user, preguntaObj, index, total) {
-  try {
-    const qEmbed = new EmbedBuilder()
-      .setTitle(`Pregunta ${index + 1} / ${total}`)
-      .setDescription(`**${preguntaObj.pregunta || preguntaObj.question || preguntaObj.q}**`)
-      .setColor("Purple")
-      .setFooter({ text: "Responde en este canal para continuar." })
-      .setTimestamp();
+// ------------------- Función hacer pregunta ------------------- //
+async function hacerPregunta(channel, usuario, pregunta, index, total) {
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("a").setLabel("A").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("b").setLabel("B").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("c").setLabel("C").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("d").setLabel("D").setStyle(ButtonStyle.Secondary)
+  );
 
-    const promptMsg = await channel.send({ content: `<@${user.id}>`, embeds: [qEmbed] });
+  const opciones = pregunta.opciones
+    .map((texto, i) => `${String.fromCharCode(65 + i)}) ${texto}`)
+    .join("\n");
 
-    const filter = msg => msg.author?.id === user.id;
-    const collected = await channel.awaitMessages({ filter, max: 1, time: 120000, errors: ["time"] }).catch(() => null);
+  const embed = new EmbedBuilder()
+    .setTitle(`❓ Pregunta ${index + 1} de ${total}`)
+    .setDescription(`**${pregunta.pregunta}**\n\n${opciones}`)
+    .setColor("Purple");
 
-    if (!collected || collected.size === 0) {
-      await channel.send(`<@${user.id}> ⏳ Tiempo de respuesta agotado. Si quieres volver a intentarlo, abre otro ticket o pide a un staff que lo reinicie.`);
-      return null;
-    }
+  const msg = await channel.send({ embeds: [embed], components: [row] });
 
-    const response = collected.first();
-    // opcional: borrar la pregunta del bot para mantener limpio el canal (comentado)
-    // await promptMsg.delete().catch(() => {});
-    return response.content?.trim() ?? null;
-  } catch (err) {
-    console.error("❌ Error en hacerPregunta:", err);
-    return null;
-  }
+  return new Promise((resolve) => {
+    const filter = (i) => i.user.id === usuario.id;
+    msg.awaitMessageComponent({ filter, time: 60000 })
+      .then(async (interaction) => {
+        await interaction.deferUpdate().catch(() => {});
+        await msg.delete().catch(() => {});
+        resolve(interaction.customId);
+      })
+      .catch(() => {
+        msg.delete().catch(() => {});
+        channel.send("⏰ Tiempo agotado, pasamos a la siguiente.").catch(() => {});
+        resolve(null);
+      });
+  });
 }
 
 // ------------------- Evento Ready ------------------- //
@@ -128,7 +132,7 @@ client.on("ready", async () => {
     console.warn("⚠️ No se pudo establecer presencia:", err.message);
   }
 
-  // Registrar comandos de guild (lista que ya tenías)
+  // Registrar comandos de guild
   try {
     const commands = [
       new SlashCommandBuilder().setName("setup-soporte").setDescription("Configura el sistema de soporte."),
