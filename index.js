@@ -75,47 +75,19 @@ client.on("ready", async () => {
 
   // Registrar comandos
   const commands = [
-    new SlashCommandBuilder()
-      .setName("setup-soporte")
-      .setDescription("Configura el sistema de soporte."),
-    new SlashCommandBuilder()
-      .setName("reset-whitelist")
-      .setDescription("Resetea la whitelist de un usuario.")
+    new SlashCommandBuilder().setName("setup-soporte").setDescription("Configura el sistema de soporte."),
+    new SlashCommandBuilder().setName("reset-whitelist").setDescription("Resetea la whitelist de un usuario.")
       .addUserOption(opt => opt.setName("usuario").setDescription("Usuario a resetear").setRequired(true)),
-    new SlashCommandBuilder()
-      .setName("donaciones")
-      .setDescription("Muestra información sobre las donaciones."),
-    new SlashCommandBuilder()
-      .setName("pilegales")
-      .setDescription("Muestra pautas legales."),
-    new SlashCommandBuilder()
-      .setName("pnegocios")
-      .setDescription("Muestra pautas de negocios."),
-    new SlashCommandBuilder()
-      .setName("pstaff")
-      .setDescription("Muestra pautas de staff."),
-    new SlashCommandBuilder()
-      .setName("sancionar")
-      .setDescription("Sanciona a un usuario y publica el aviso en el canal de sanciones.")
-      .addUserOption(opt =>
-        opt.setName("usuario")
-          .setDescription("Usuario sancionado")
-          .setRequired(true)
-      ),
-    new SlashCommandBuilder()
-      .setName("pck")
-      .setDescription("Muestra pautas de CK."),
-    new SlashCommandBuilder()
-      .setName("pstreamer")
-      .setDescription("Muestra pautas de streamers."),
-    new SlashCommandBuilder()
-      .setName("addwhitelist")
-      .setDescription("Añade un usuario a la whitelist.")
-      .addUserOption(opt =>
-        opt.setName("usuario")
-          .setDescription("Usuario a añadir")
-          .setRequired(true)
-      )
+    new SlashCommandBuilder().setName("donaciones").setDescription("Muestra información sobre las donaciones."),
+    new SlashCommandBuilder().setName("pilegales").setDescription("Muestra pautas legales."),
+    new SlashCommandBuilder().setName("pnegocios").setDescription("Muestra pautas de negocios."),
+    new SlashCommandBuilder().setName("pstaff").setDescription("Muestra pautas de staff."),
+    new SlashCommandBuilder().setName("pck").setDescription("Muestra pautas de CK."),
+    new SlashCommandBuilder().setName("pstreamer").setDescription("Muestra pautas de streamers."),
+    new SlashCommandBuilder().setName("addwhitelist").setDescription("Añade un usuario a la whitelist.")
+      .addUserOption(opt => opt.setName("usuario").setDescription("Usuario a añadir").setRequired(true)),
+    new SlashCommandBuilder().setName("sancionar").setDescription("Sanciona a un usuario.")
+      .addUserOption(opt => opt.setName("usuario").setDescription("Usuario sancionado").setRequired(true))
   ].map(cmd => cmd.toJSON());
 
   const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
@@ -137,18 +109,14 @@ client.on("interactionCreate", async (interaction) => {
       const usuario = interaction.options.getUser("usuario");
       const member = await guild.members.fetch(interaction.user.id);
       const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
-      if (!allowedRoles.some((role) => member.roles.cache.has(role))) {
-        return interaction.editReply({
-          content: "❌ No tienes permiso para usar este comando. Solo el Staff puede sancionar.",
-        });
+      if (!allowedRoles.some(role => member.roles.cache.has(role))) {
+        return interaction.editReply({ content: "❌ No tienes permiso para usar este comando." });
       }
 
       const sancionesChannelId = "1435338553088278719";
       const sancionesChannel = guild.channels.cache.get(sancionesChannelId);
       if (!sancionesChannel) {
-        return interaction.editReply({
-          content: "⚠️ No se encontró el canal de sanciones. Verifica el ID configurado.",
-        });
+        return interaction.editReply({ content: "⚠️ No se encontró el canal de sanciones." });
       }
 
       const embed = new EmbedBuilder()
@@ -160,17 +128,14 @@ client.on("interactionCreate", async (interaction) => {
         .setFooter({ text: "UNITY CITY RP - Sistema de Sanciones" });
 
       await sancionesChannel.send({ embeds: [embed] });
-
-      await interaction.editReply({
-        content: `✅ El usuario ${usuario.tag} ha sido sancionado correctamente.`,
-      });
-      return;
+      await interaction.editReply({ content: `✅ El usuario ${usuario.tag} ha sido sancionado correctamente.` });
     }
 
   } catch (err) {
     console.error("❌ Error en interacción:", err);
   }
 });
+
 // ------------------- /reset-whitelist ------------------- //
 if (interaction.isChatInputCommand() && interaction.commandName === "reset-whitelist") {
   await interaction.deferReply({ ephemeral: true });
@@ -746,56 +711,6 @@ client.on("guildMemberAdd", async (member) => {
     channel.send({ embeds: [embed] }).catch(() => {});
   } catch (err) {
     console.error("❌ Error en guildMemberAdd:", err);
-  }
-});
-
-// ------------------- /sancionar ------------------- //
-client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-
-  if (interaction.commandName === "sancionar") {
-    await interaction.deferReply({ ephemeral: true });
-
-    const { guild } = interaction;
-    const usuario = interaction.options.getUser("usuario");
-    const member = await guild.members.fetch(interaction.user.id);
-    const MOD_ROLES = {
-      admin: "ID_DEL_ROL_ADMIN",
-      moderador: "ID_DEL_ROL_MODERADOR",
-      soporte: "ID_DEL_ROL_SOPORTE",
-    };
-
-    const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
-    if (!allowedRoles.some(role => member.roles.cache.has(role))) {
-      return interaction.editReply({
-        content: "❌ No tienes permiso para usar este comando. Solo el Staff puede sancionar."
-      });
-    }
-
-    // 📢 Canal de sanciones
-    const sancionesChannelId = "1435338553088278719"; 
-    const sancionesChannel = guild.channels.cache.get(sancionesChannelId);
-
-    if (!sancionesChannel) {
-      return interaction.editReply({
-        content: "⚠️ No se encontró el canal de sanciones. Verifica el ID configurado."
-      });
-    }
-
-    const embed = new EmbedBuilder()
-      .setTitle("🚨 Usuario Sancionado")
-      .setDescription(`El usuario ${usuario} ha sido sancionado.`)
-      .setColor("Red")
-      .setThumbnail(usuario.displayAvatarURL({ dynamic: true }))
-      .setTimestamp()
-      .setFooter({ text: "UNITY CITY RP - Sistema de Sanciones" });
-
-
-    await sancionesChannel.send({ embeds: [embed] });
-
-    await interaction.editReply({
-      content: `✅ El usuario ${usuario.tag} ha sido sancionado correctamente.`,
-    });
   }
 });
 
