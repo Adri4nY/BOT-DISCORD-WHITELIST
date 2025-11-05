@@ -688,6 +688,16 @@ if (customId === "whitelist") {
   }
 }
       
+// ------------------- Manejo global de errores ------------------- //
+process.on('exit', (code) => console.log(`⚠️ Proceso finalizado con código ${code}`));
+process.on('uncaughtException', (err) => console.error('❌ Excepción no capturada:', err));
+process.on('unhandledRejection', (reason) => console.error('❌ Promesa no manejada:', reason));
+
+// ------------------- Login ------------------- //
+client.login(process.env.TOKEN)
+  .then(() => console.log("🔓 Login exitoso. Bot conectado a Discord."))
+  .catch(err => console.error("❌ Error al iniciar sesión:", err));
+
 // ------------------- Bienvenidas ------------------- //
 client.on("guildMemberAdd", async (member) => {
   try {
@@ -703,18 +713,8 @@ client.on("guildMemberAdd", async (member) => {
       .setFooter({ text: "UNITY CITY RP", iconURL: member.guild.iconURL() })
       .setTimestamp();
 
-    channel.send({ embeds: [embed] }).catch(() => {});
+    await channel.send({ embeds: [embed] });
   } catch (err) {
     console.error("❌ Error en guildMemberAdd:", err);
   }
 });
-
-// ------------------- Manejo global de errores ------------------- //
-process.on('exit', (code) => console.log(`⚠️ Proceso finalizado con código ${code}`));
-process.on('uncaughtException', (err) => console.error('❌ Excepción no capturada:', err));
-process.on('unhandledRejection', (reason) => console.error('❌ Promesa no manejada:', reason));
-
-// ------------------- Login ------------------- //
-client.login(process.env.TOKEN)
-  .then(() => console.log("🔓 Login exitoso. Bot conectado a Discord."))
-  .catch(err => console.error("❌ Error al iniciar sesión:", err));
