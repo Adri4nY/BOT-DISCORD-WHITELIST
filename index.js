@@ -654,7 +654,7 @@ if (customId === "whitelist") {
       if (respuesta && respuesta === preguntas[i].respuesta) puntaje++;
     }
 
-    const aprobado = puntaje >= 9;
+    const aprobado = puntaje >= 12;
     const resultadoEmbed = new EmbedBuilder()
       .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
       .setDescription(aprobado
@@ -687,6 +687,536 @@ if (customId === "whitelist") {
     console.log(`✅ Whitelist finalizada para ${interaction.user.tag}`);
   }
 }
+// ------------------- Manejo global de errores ------------------- //
+process.on('exit', (code) => console.log(`⚠️ Proceso finalizado con código ${code}`));
+process.on('uncaughtException', (err) => console.error('❌ Excepción no capturada:', err));
+process.on('unhandledRejection', (reason) => console.error('❌ Promesa no manejada:', reason));
+
+// ------------------- Login ------------------- //
+client.login(process.env.TOKEN)
+  .then(() => console.log("🔓 Login exitoso. Bot conectado a Discord."))
+  .catch(err => console.error("❌ Error al iniciar sesión:", err));
+
+// ------------------- Bienvenidas ------------------- //
+client.on("guildMemberAdd", async (member) => {
+  try {
+    const canalBienvenida = "1422298345241841824";
+    const channel = member.guild.channels.cache.get(canalBienvenida);
+    if (!channel) return;
+
+    const embed = new EmbedBuilder()
+      .setTitle("🎉 ¡Nuevo miembro en **UNITY CITY**!")
+      .setDescription(`Bienvenido/a ${member} a **${member.guild.name}** 🚀\n👉 No olvides leer las normas y realizar la whitelist.`)
+      .setColor("Purple")
+      .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+      .setFooter({ text: "UNITY CITY RP", iconURL: member.guild.iconURL() })
+      .setTimestamp();
+
+    await channel.send({ embeds: [embed] });
+  } catch (err) {
+    console.error("❌ Error en guildMemberAdd:", err);
+  }
+});
+
+// ------------------- Comando /addwhitelist ------------------- //
+if (interaction.isChatInputCommand() && interaction.commandName === "addwhitelist") {
+  const member = await guild.members.fetch(interaction.user.id);
+
+  // ✅ Solo rol Entrevistador puede usarlo
+  if (!member.roles.cache.has(ROL_ENTREVISTADOR)) {
+    return interaction.reply({
+      content: "❌ No tienes permiso para usar este comando. Solo los entrevistadores pueden hacerlo.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  const usuario = interaction.options.getUser("usuario");
+  const miembro = await guild.members.fetch(usuario.id).catch(() => null);
+
+  if (!miembro) {
+    return interaction.reply({
+      content: "⚠️ No se pudo encontrar al usuario en el servidor.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  await miembro.roles.add(ROLES.whitelist).catch(() => {});
+  await miembro.roles.remove(ROLES.sinWhitelist).catch(() => {});
+
+  // Canal público
+  const publicChannel = guild.channels.cache.get(PUBLIC_CHANNEL_ID);
+  if (publicChannel) {
+    const embed = new EmbedBuilder()
+      .setTitle("✅ Whitelist Añadida")
+      .setDescription(`➡️ El usuario ${usuario} ha sido añadido a la whitelist.`)
+      .setColor("Green")
+      .setTimestamp();
+
+    publicChannel.send({ embeds: [embed] });
+  }
+
+  await interaction.reply({
+    content: "✅ Usuario añadido a la whitelist correctamente.",
+    flags: MessageFlags.Ephemeral
+  });
+
+  // Log de staff
+  const logChannel = guild.channels.cache.get(LOGS_CHANNEL_ID);
+  if (logChannel) {
+    const logEmbed = new EmbedBuilder()
+      .setTitle("📋 Nuevo añadido a Whitelist")
+      .setDescription(`👤 **Usuario añadido:** ${usuario}\n🧑‍💼 **Añadido por:** ${interaction.user}`)
+      .setColor("Purple")
+      .setTimestamp();
+
+    logChannel.send({ embeds: [logEmbed] });
+  }
+  return;
+}
+
+    // ------------------- Comandos de pautas ------------------- //
+    if (interaction.isChatInputCommand() && ["pstaff", "pilegales", "pnegocios", "pck", "pstreamer"].includes(interaction.commandName)) {
+      await interaction.deferReply({ ephemeral: false }).catch(() => {});
+
+      const commandName = interaction.commandName;
+      const member = await guild.members.fetch(interaction.user.id);
+      const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
+
+      if (!allowedRoles.some(role => member.roles.cache.has(role))) {
+        return interaction.editReply({
+          content: "❌ No tienes permiso para usar este comando. Solo Staff puede usarlo."
+        });
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle(`📌 Pautas para ${commandName.replace("p", "").toUpperCase()}`)
+        .setColor("Purple")
+        .setFooter({ text: "UNITY CITY RP - Postulación" })
+        .setTimestamp();
+
+      switch (commandName) {
+        case "pilegales":
+          embed.addFields(
+            { name: "📝 Formato", value: "PDF OBLIGATORIO", inline: false },
+            { name: "🏴 Origen de la banda", value: "Describe el origen de la banda.", inline: false },
+            { name: "📜 Historia y expansión", value: "Explica la historia y expansión de la banda.", inline: false },
+            { name: "⚔️ Estructura y símbolos", value: "Detalla la estructura y símbolos que representen la banda.", inline: false },
+            { name: "💎 Personalidad y reputación", value: "Describe la personalidad y reputación.", inline: false },
+            { name: "🎯 Aportación al servidor", value: "Qué vais a aportar y cómo fomentaréis el rol.", inline: false },
+            { name: "⏰ Disponibilidad", value: "Disponibilidad horaria de los miembros y planes de progresión.", inline: false },
+            { name: "📍 Ubicación", value: "Foto de la ubicación del barrio.", inline: false },
+            { name: "👥 Integrantes", value: "Lista de integrantes.", inline: false },
+            { name: "🎨 Grafiti", value: "Boceto o foto del grafiti.", inline: false }
+          );
+          break;
+        case "pnegocios":
+          embed.addFields(
+            { name: "🏪 Nombre del local", value: "Motivo por el que quieres postular a ese negocio", inline: false },
+            { name: "👥 Empleados", value: "Lista de empleados", inline: false },
+            { name: "📜 Normativa del local", value: "Reglas y normas internas", inline: false },
+            { name: "💡 Ideas para el negocio", value: "Ideas creativas para el negocio", inline: false },
+            { name: "🎉 Eventos planeados", value: "Eventos que tienes pensados para realizar", inline: false },
+            { name: "✨ Consejo", value: "Recordar ser creativos y tener buenas ideas! SUERTE!!", inline: false }
+          );
+          break;
+        case "pstaff":
+          embed.addFields(
+            { name: "🧑‍💼 Nombre OOC", value: "Tu nombre fuera del rol", inline: false },
+            { name: "🎂 Edad OOC", value: "Tu edad real", inline: false },
+            { name: "⏳ Tiempo en el servidor", value: "¿Cuánto tiempo llevas en el servidor?", inline: false },
+            { name: "⚠️ Sanciones administrativas", value: "¿Tienes alguna sanción grave?", inline: false },
+            { name: "💪 Cualidades y puntos fuertes", value: "Describe tus fortalezas", inline: false },
+            { name: "❌ Defectos y puntos débiles", value: "Describe tus debilidades", inline: false },
+            { name: "⏰ Disponibilidad horaria", value: "Horario en el que puedes estar activo", inline: false },
+            { name: "🎮 URL de Steam", value: "Link a tu cuenta de Steam", inline: false }
+          );
+          break;
+        case "pck":
+          embed.addFields(
+            { name: "🆔 Nombre IC", value: "Tu nombre dentro del rol", inline: false },
+            { name: "💀 Motivos para hacer CK", value: "Explica por qué deseas realizar CK", inline: false },
+            { name: "🎭 Rol posterior", value: "Rol que vas a desempeñar después de la muerte de este", inline: false },
+            { name: "💡 Otros detalles", value: "Cualquier otra información que quieras agregar sobre tu CK", inline: false }
+          );
+          break;
+        case "pstreamer":
+          embed.addFields(
+            { name: "🧑‍💻 Nombre OOC", value: "Tu nombre fuera del rol", inline: false },
+            { name: "🎂 Edad OOC", value: "Tu edad real", inline: false },
+            { name: "⏱️ Horas roleadas en FiveM", value: "Cantidad de horas roleadas (mínimo 600 horas de rol FiveM )", inline: false },
+            { name: "⏳ Tiempo en el servidor", value: "¿Cuánto tiempo llevas en el servidor?", inline: false },
+            { name: "🎮 URL de Steam", value: "Link a tu cuenta de Steam", inline: false },
+            { name: "📺 Link de la red social", value: "Red social donde vas a streamear el servidor", inline: false }
+          );
+          break;
+      }
+
+      await interaction.editReply({ embeds: [embed] });
+      return;
+    }
+
+    // ------------------- Setup Soporte ------------------- //
+    if (interaction.isChatInputCommand() && interaction.commandName === "setup-soporte") {
+      const embed = new EmbedBuilder()
+        .setTitle("🎫 Sistema de Tickets - UNITY CITY")
+        .setDescription("Selecciona el tipo de ticket que quieras abrir 👇")
+        .setColor("Purple");
+
+      const row = new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId("ticket_select")
+          .setPlaceholder("Abrir un ticket...")
+          .addOptions([
+            { label: "Soporte General", value: "soporte_general", description: "Abrir ticket de soporte general", emoji: "🟢" },
+            { label: "Reportes", value: "reportes", description: "Abrir ticket de reportes", emoji: "🐞" },
+            { label: "CK", value: "ck", description: "Abrir ticket de CK", emoji: "💀" },
+            { label: "Donaciones", value: "donaciones", description: "Abrir ticket de donaciones", emoji: "💸" },
+            { label: "Facciones", value: "facciones", description: "Abrir ticket de facciones", emoji: "🏢" },
+            { label: "Postulación", value: "postulacion", description: "Abrir ticket de postulación", emoji: "📋" },
+          ])
+      );
+
+      await interaction.reply({ embeds: [embed], components: [row] });
+      return;
+    }
+
+
+// ------------------- Ticket Select ------------------- //
+if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
+  // Prevenir doble ejecución
+  if (interaction.ticketProcessing) return;
+  interaction.ticketProcessing = true;
+
+  const ticketMap = {
+    soporte_general: { cat: SOPORTE_CATEGORY_ID, label: "🟢 Ticket de Soporte General" },
+    reportes: { cat: "1423746566610620568", label: "🐞 Ticket de Reportes" },
+    ck: { cat: "1423746747741765632", label: "💀 Ticket de CK" },
+    donaciones: { cat: "1423747380637073489", label: "💸 Ticket de Donaciones" },
+    facciones: { cat: "1423747506382311485", label: "🏢 Ticket de Facciones" },
+    postulacion: { cat: "1423747604495466536", label: "📋 Ticket de Postulación" }
+  };
+
+  const tipo = interaction.values[0];
+  const { cat, label } = ticketMap[tipo];
+  const encargadoDonaciones = "1281934868410007653"; 
+
+  // ✅ Prevenir tickets duplicados
+  const existingTicket = guild.channels.cache.find(
+    c => c.name.startsWith(`${tipo}-${interaction.user.username}`)
+  );
+
+  if (existingTicket) {
+    interaction.ticketProcessing = false;
+    return interaction.reply({
+      content: `⚠️ Ya tienes un ticket abierto: ${existingTicket}`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  // ✅ Nombre único del canal
+  let channelName = `${tipo}-${interaction.user.username}`;
+  let counter = 1;
+  while (guild.channels.cache.some(c => c.name === channelName)) {
+    channelName = `${tipo}-${interaction.user.username}-${counter++}`;
+  }
+
+  try {
+    // ⚙️ Permisos base
+    const perms = [
+      { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+      {
+        id: interaction.user.id,
+        allow: [
+          PermissionsBitField.Flags.ViewChannel,
+          PermissionsBitField.Flags.SendMessages,
+          PermissionsBitField.Flags.AttachFiles,
+          PermissionsBitField.Flags.EmbedLinks
+        ]
+      },
+      {
+        id: client.user.id,
+        allow: [
+          PermissionsBitField.Flags.ViewChannel,
+          PermissionsBitField.Flags.SendMessages,
+          PermissionsBitField.Flags.AttachFiles,
+          PermissionsBitField.Flags.EmbedLinks,
+          PermissionsBitField.Flags.ManageChannels
+        ]
+      }
+    ];
+
+    // 👑 Roles según el tipo de ticket
+    if (tipo === "donaciones") {
+      perms.push({
+        id: encargadoDonaciones,
+        allow: [
+          PermissionsBitField.Flags.ViewChannel,
+          PermissionsBitField.Flags.SendMessages,
+          PermissionsBitField.Flags.AttachFiles,
+          PermissionsBitField.Flags.EmbedLinks
+        ]
+      });
+    } else {
+      perms.push(
+        {
+          id: MOD_ROLES.moderador,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages,
+            PermissionsBitField.Flags.AttachFiles,
+            PermissionsBitField.Flags.EmbedLinks
+          ]
+        },
+        {
+          id: MOD_ROLES.soporte,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages,
+            PermissionsBitField.Flags.AttachFiles,
+            PermissionsBitField.Flags.EmbedLinks
+          ]
+        },
+        {
+          id: MOD_ROLES.admin,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages,
+            PermissionsBitField.Flags.AttachFiles,
+            PermissionsBitField.Flags.EmbedLinks
+          ]
+        }
+      );
+    }
+
+    // 🆕 Crear el canal del ticket
+    const channel = await guild.channels.create({
+      name: channelName,
+      type: 0,
+      parent: cat,
+      permissionOverwrites: perms
+    });
+
+    const embedTicket = new EmbedBuilder()
+      .setTitle(label)
+      .setDescription(`👋 Hola ${interaction.user}, gracias por abrir un ticket de **${label}**.\nUn miembro del staff te atenderá pronto.`)
+      .setColor("Purple")
+      .setTimestamp();
+
+    const rowCerrar = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("cerrar_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger)
+    );
+
+    const mention =
+      tipo === "donaciones"
+        ? `<@&${encargadoDonaciones}>`
+        : `<@&${MOD_ROLES.moderador}> <@&${MOD_ROLES.soporte}> <@&${MOD_ROLES.admin}>`;
+
+    await channel.send({
+      content: mention,
+      embeds: [embedTicket],
+      components: [rowCerrar],
+      allowedMentions: {
+        roles:
+          tipo === "donaciones"
+            ? [encargadoDonaciones]
+            : [MOD_ROLES.moderador, MOD_ROLES.soporte, MOD_ROLES.admin]
+      }
+    });
+
+    await interaction.reply({
+      content: `✅ Ticket creado correctamente: ${channel}`,
+      flags: MessageFlags.Ephemeral
+    });
+  } catch (err) {
+    console.error("❌ Error al crear ticket:", err);
+    if (!interaction.replied) {
+      await interaction.reply({
+        content: "⚠️ Hubo un error al crear el ticket.",
+        flags: MessageFlags.Ephemeral
+      }).catch(() => {});
+    }
+  } finally {
+    interaction.ticketProcessing = false;
+  }
+
+  return;
+}
+ 
+    // ------------------- Botones ------------------- //
+    if (interaction.isButton()) {
+      const customId = interaction.customId;
+
+  // 🔒 Cerrar ticket con transcript
+if (customId === "cerrar_ticket") {
+  await interaction.reply({
+    content: "⏳ Cerrando ticket en 5 segundos...",
+    flags: MessageFlags.Ephemeral
+  });
+
+  setTimeout(async () => {
+    const channel = interaction.channel;
+    if (!channel) return;
+
+    try {
+      // Obtener mensajes (máx 100)
+      const messages = await channel.messages.fetch({ limit: 100 });
+      const sorted = Array.from(messages.values()).sort(
+        (a, b) => a.createdTimestamp - b.createdTimestamp
+      );
+
+      // Crear el contenido del transcript
+      let transcriptContent = `Transcript del canal: #${channel.name}\nFecha de cierre: ${new Date().toLocaleString()}\n\n`;
+      for (const msg of sorted) {
+        const time = new Date(msg.createdTimestamp).toLocaleTimeString();
+        transcriptContent += `[${time}] ${msg.author?.tag || "Sistema"}: ${msg.content || "(embed/archivo)"}\n`;
+      }
+
+      // Guardar el archivo en una ruta segura local
+      const safePath = `./${channel.name}_transcript.txt`;
+      fs.writeFileSync(safePath, transcriptContent, "utf8");
+
+      // Enviar el transcript al canal de logs
+      const logChannel = channel.guild.channels.cache.get(LOG_CHANNEL_TRANSCRIPTS_ID);
+      if (logChannel) {
+        const embed = new EmbedBuilder()
+          .setTitle("🗒️ Transcript de Ticket Cerrado")
+          .setDescription(`📁 Ticket cerrado: **#${channel.name}**\n👤 Cerrado por: ${interaction.user}`)
+          .setColor("Purple")
+          .setTimestamp();
+
+        await logChannel.send({ embeds: [embed], files: [safePath] });
+      }
+
+      // Borrar el archivo local
+      fs.unlinkSync(safePath);
+
+      // Intentar borrar el canal
+      await channel.delete().catch(err => {
+        console.error("❌ Error eliminando canal:", err);
+      });
+
+    } catch (err) {
+      console.error("❌ Error al cerrar ticket:", err);
+      await interaction.followUp({
+        content: "⚠️ Hubo un error al generar el transcript o cerrar el canal.",
+        flags: MessageFlags.Ephemeral
+      }).catch(() => {});
+    }
+  }, 5000);
+
+  return;
+}
+// ------------------- WHITELIST ------------------- //
+if (customId === "whitelist") {
+  const userId = interaction.user.id;
+  const now = Date.now();
+
+  // Evitar doble click simultáneo
+  if (processing.has(userId)) {
+    return interaction.reply({
+      content: "⚠️ Ya se está creando tu whitelist, espera un momento...",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  // Cooldown 6h
+  if (
+    cooldowns.has(userId) &&
+    now - cooldowns.get(userId) < COOLDOWN_HORAS * 60 * 60 * 1000
+  ) {
+    const remaining = Math.ceil(
+      (COOLDOWN_HORAS * 60 * 60 * 1000 -
+        (now - cooldowns.get(userId))) / 60000
+    );
+    return interaction.reply({
+      content: `⚠️ Ya hiciste un intento de whitelist. Espera ${remaining} minuto(s).`,
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  processing.add(userId);
+  await interaction.deferReply({ ephemeral: true });
+
+  // 🧹 Limpieza automática a los 2 minutos (por seguridad)
+  setTimeout(() => {
+    if (processing.has(userId)) {
+      console.log(`🧽 Liberando usuario atascado en whitelist: ${userId}`);
+      processing.delete(userId);
+    }
+  }, 120000);
+
+  try {
+    console.log(`🎬 Iniciando whitelist para ${interaction.user.tag} (${userId})`);
+
+    // Evitar tickets duplicados
+    const userTickets = guild.channels.cache.filter(c =>
+      c.name.startsWith(`whitelist-${interaction.user.username}`)
+    );
+    if (userTickets.size > 0) {
+      processing.delete(userId);
+      return interaction.editReply({
+        content: `⚠️ Ya tienes un ticket de whitelist abierto: ${userTickets.first()}`
+      });
+    }
+
+    // Crear canal
+    const channel = await guild.channels.create({
+      name: `whitelist-${interaction.user.username}`,
+      type: 0,
+      parent: WHITELIST_CATEGORY_ID,
+      permissionOverwrites: [
+        { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+        { id: MOD_ROLES.moderador, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+        { id: MOD_ROLES.soporte, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+        { id: MOD_ROLES.admin, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+      ],
+    });
+
+    await interaction.editReply({ content: `✅ Ticket de whitelist creado: ${channel}` });
+
+    // --- Preguntas ---
+    let puntaje = 0;
+    for (let i = 0; i < preguntas.length; i++) {
+      const respuesta = await hacerPregunta(channel, interaction.user, preguntas[i], i, preguntas.length);
+      if (respuesta && respuesta === preguntas[i].respuesta) puntaje++;
+    }
+
+    const aprobado = puntaje >= 12;
+    const resultadoEmbed = new EmbedBuilder()
+      .setTitle(aprobado ? "✅ Whitelist Aprobada" : "❌ Whitelist Suspendida")
+      .setDescription(aprobado
+        ? `🎉 ¡Felicidades ${interaction.user}, tu examen ha sido aprobado!\n**Puntaje:** ${puntaje}/${preguntas.length}`
+        : `😢 Lo sentimos ${interaction.user}, no has aprobado. Podrás intentarlo de nuevo en 6h.\n**Puntaje:** ${puntaje}/${preguntas.length}`)
+      .setColor(aprobado ? "Green" : "Red");
+
+    const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+    if (logChannel) logChannel.send({ embeds: [resultadoEmbed] });
+    await channel.send({ embeds: [resultadoEmbed] });
+
+    if (aprobado) {
+      const member = await guild.members.fetch(userId);
+      await member.roles.add(ROLES.whitelist);
+      await member.roles.remove(ROLES.sinWhitelist);
+      await channel.send("🎉 ¡Has recibido el rol de **Whitelist**!");
+    }
+
+    cooldowns.set(userId, Date.now());
+    setTimeout(() => channel.delete().catch(() => {}), 10000);
+
+  } catch (err) {
+    console.error("❌ Error al crear whitelist:", err);
+    await interaction.editReply({
+      content: "⚠️ Ocurrió un error creando tu whitelist. Revisa permisos, categorías o el archivo de preguntas.",
+      flags: MessageFlags.Ephemeral
+    });
+  } finally {
+    processing.delete(userId);
+    console.log(`✅ Whitelist finalizada para ${interaction.user.tag}`);
+  }
+}
+});
+      
 // ------------------- Manejo global de errores ------------------- //
 process.on('exit', (code) => console.log(`⚠️ Proceso finalizado con código ${code}`));
 process.on('uncaughtException', (err) => console.error('❌ Excepción no capturada:', err));
