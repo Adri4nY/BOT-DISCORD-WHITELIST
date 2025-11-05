@@ -109,32 +109,68 @@ client.on("ready", async () => {
     status: "online",
   });
 
-  // Registrar comandos
-  const commands = [
-    new SlashCommandBuilder().setName("setup-soporte").setDescription("Configura el sistema de soporte."),
-    new SlashCommandBuilder()
-      .setName("reset-whitelist")
-      .setDescription("Resetea la whitelist de un usuario.")
-      .addUserOption(opt => opt.setName("usuario").setDescription("Usuario a resetear").setRequired(true)),
-    new SlashCommandBuilder()
-      .setName("donaciones")
-      .setDescription("Muestra información sobre las donaciones."),
-    new SlashCommandBuilder().setName("pilegales").setDescription("Muestra pautas legales."),
-    new SlashCommandBuilder().setName("pnegocios").setDescription("Muestra pautas de negocios."),
-    new SlashCommandBuilder().setName("pstaff").setDescription("Muestra pautas de staff."),
-    new SlashCommandBuilder().setName("pck").setDescription("Muestra pautas de CK."),
-    new SlashCommandBuilder().setName("pstreamer").setDescription("Muestra pautas de streamers."),
-    new SlashCommandBuilder()
-      .setName("addwhitelist")
-      .setDescription("Añade un usuario a la whitelist.")
-      .addUserOption(opt => opt.setName("usuario").setDescription("Usuario a añadir").setRequired(true))
-  ].map(cmd => cmd.toJSON());
+// Registrar comandos
+const commands = [
+  new SlashCommandBuilder()
+    .setName("setup-soporte")
+    .setDescription("Configura el sistema de soporte."),
 
-  const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
-  const GUILD_ID = "821091789325729803";
-  await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commands });
-  console.log("✅ Comandos registrados correctamente.");
-});
+  new SlashCommandBuilder()
+    .setName("reset-whitelist")
+    .setDescription("Resetea la whitelist de un usuario.")
+    .addUserOption(opt =>
+      opt.setName("usuario")
+        .setDescription("Usuario a resetear")
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName("donaciones")
+    .setDescription("Muestra información sobre las donaciones."),
+
+  new SlashCommandBuilder()
+    .setName("pilegales")
+    .setDescription("Muestra pautas legales."),
+
+  new SlashCommandBuilder()
+    .setName("pnegocios")
+    .setDescription("Muestra pautas de negocios."),
+
+  new SlashCommandBuilder()
+    .setName("pstaff")
+    .setDescription("Muestra pautas de staff."),
+
+  new SlashCommandBuilder()
+    .setName("sancionar")
+    .setDescription("Sanciona a un usuario y publica el aviso en el canal de sanciones.")
+    .addUserOption(opt =>
+      opt.setName("usuario")
+        .setDescription("Usuario sancionado")
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName("pck")
+    .setDescription("Muestra pautas de CK."),
+
+  new SlashCommandBuilder()
+    .setName("pstreamer")
+    .setDescription("Muestra pautas de streamers."),
+
+  new SlashCommandBuilder()
+    .setName("addwhitelist")
+    .setDescription("Añade un usuario a la whitelist.")
+    .addUserOption(opt =>
+      opt.setName("usuario")
+        .setDescription("Usuario a añadir")
+        .setRequired(true)
+    )
+].map(cmd => cmd.toJSON());
+
+const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+const GUILD_ID = "821091789325729803";
+await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commands });
+console.log("✅ Comandos registrados correctamente.");
 
 // ------------------- Interacciones ------------------- //
 client.on("interactionCreate", async (interaction) => {
@@ -524,6 +560,44 @@ if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select"
 
   return;
 }
+
+ // ------------------- /sancionar ------------------- //
+    if (interaction.isChatInputCommand() && interaction.commandName === "sancionar") {
+      await interaction.deferReply({ ephemeral: true });
+
+      const usuario = interaction.options.getUser("usuario");
+      const member = await guild.members.fetch(interaction.user.id);
+      const allowedRoles = [MOD_ROLES.admin, MOD_ROLES.moderador, MOD_ROLES.soporte];
+      if (!allowedRoles.some((role) => member.roles.cache.has(role))) {
+        return interaction.editReply({
+          content: "❌ No tienes permiso para usar este comando. Solo el Staff puede sancionar.",
+        });
+      }
+
+      const sancionesChannelId = "1435338553088278719";
+      const sancionesChannel = guild.channels.cache.get(sancionesChannelId);
+      if (!sancionesChannel) {
+        return interaction.editReply({
+          content: "⚠️ No se encontró el canal de sanciones. Verifica el ID configurado.",
+        });
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle("🚨 Usuario Sancionado")
+        .setDescription(`El usuario <@${usuario.id}> ha sido sancionado.`)
+        .setColor("Red")
+        .setThumbnail(usuario.displayAvatarURL({ dynamic: true }))
+        .setTimestamp()
+        .setFooter({ text: "UNITY CITY RP - Sistema de Sanciones" });
+
+      await sancionesChannel.send({ embeds: [embed] });
+
+      await interaction.editReply({
+        content: `✅ El usuario ${usuario.tag} ha sido sancionado correctamente.`,
+      });
+      return;
+    }
+    
     // ------------------- Botones ------------------- //
     if (interaction.isButton()) {
       const customId = interaction.customId;
