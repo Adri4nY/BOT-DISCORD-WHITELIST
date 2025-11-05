@@ -684,10 +684,12 @@ if (customId === "whitelist") {
     });
   } finally {
     processing.delete(userId);
+   } finally {
+    processing.delete(userId);
     console.log(`✅ Whitelist finalizada para ${interaction.user.tag}`);
   }
-}
-      
+}); // 👈 cierre del client.on("interactionCreate")
+
 // ------------------- Manejo global de errores ------------------- //
 process.on('exit', (code) => console.log(`⚠️ Proceso finalizado con código ${code}`));
 process.on('uncaughtException', (err) => console.error('❌ Excepción no capturada:', err));
